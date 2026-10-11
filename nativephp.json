@@ -1,0 +1,285 @@
+{
+    "name": "blutrixx/nativephp-sms",
+    "namespace": "Sms",
+    "version": "0.1.0",
+    "description": "Default-SMS-app layer for NativePHP Mobile (Android): role request, receive/store/notify, send, read, blocklist. Phase 0 spike.",
+    "keywords": [
+        "sms",
+        "android",
+        "default-sms-app",
+        "nativephp"
+    ],
+    "category": "communication",
+    "license": "MIT",
+    "pricing": {
+        "type": "free"
+    },
+    "author": {
+        "name": "joelnjoshkibona"
+    },
+    "platforms": [
+        "android"
+    ],
+    "bridge_functions": [
+        {
+            "name": "Sms.GetStatus",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.GetStatus",
+            "android_params": [
+                "context"
+            ],
+            "description": "Role, permission, battery and device state in one call"
+        },
+        {
+            "name": "Sms.RequestDefault",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.RequestDefault",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Open the system prompt to make this app the default SMS app; result arrives as the DefaultSmsResult event"
+        },
+        {
+            "name": "Sms.ListThreads",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.ListThreads",
+            "android_params": [
+                "context"
+            ],
+            "description": "Newest-first conversations from the system SMS store (needs READ_SMS)"
+        },
+        {
+            "name": "Sms.ListMessages",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.ListMessages",
+            "android_params": [
+                "context"
+            ],
+            "description": "Newest-first page of one conversation (needs READ_SMS)"
+        },
+        {
+            "name": "Sms.CountMessages",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.CountMessages",
+            "android_params": [
+                "context"
+            ],
+            "description": "Total rows in the system SMS store and how long counting took"
+        },
+        {
+            "name": "Sms.MarkRead",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.MarkRead",
+            "android_params": [
+                "context"
+            ],
+            "description": "Mark a conversation read (default SMS app only)"
+        },
+        {
+            "name": "Sms.Send",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.Send",
+            "android_params": [
+                "context"
+            ],
+            "description": "Send a (multipart) SMS; mirrors it into the system store while default; sent/delivered arrive in the journal"
+        },
+        {
+            "name": "Sms.ListSims",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.ListSims",
+            "android_params": [
+                "context"
+            ],
+            "description": "Active SIM slots and subscription ids (needs READ_PHONE_STATE)"
+        },
+        {
+            "name": "Sms.SetBlocklist",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SetBlocklist",
+            "android_params": [
+                "context"
+            ],
+            "description": "Replace the native blocklist used by the headless receive path"
+        },
+        {
+            "name": "Sms.Configure",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.Configure",
+            "android_params": [
+                "context"
+            ],
+            "description": "Toggle the optional ephemeral PHP hand-off from the receivers"
+        },
+        {
+            "name": "Sms.DrainEvents",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.DrainEvents",
+            "android_params": [
+                "context"
+            ],
+            "description": "Return and clear the native event journal written by the headless receivers"
+        },
+        {
+            "name": "Sms.TakePendingCompose",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.TakePendingCompose",
+            "android_params": [
+                "context"
+            ],
+            "description": "Return and clear a compose request left by an sms:/smsto: link"
+        },
+        {
+            "name": "Sms.RequestBatteryOptimizationExemption",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.RequestBatteryOptimizationExemption",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Open the system battery-optimisation exemption prompt"
+        }
+    ],
+    "events": [
+        "Blutrixx\\NativephpSms\\Events\\DefaultSmsResult"
+    ],
+    "android": {
+        "min_version": 26,
+        "permissions": [
+            "android.permission.READ_SMS",
+            "android.permission.SEND_SMS",
+            "android.permission.RECEIVE_SMS",
+            "android.permission.RECEIVE_MMS",
+            "android.permission.RECEIVE_WAP_PUSH",
+            "android.permission.READ_PHONE_STATE",
+            "android.permission.READ_CONTACTS",
+            "android.permission.POST_NOTIFICATIONS",
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        ],
+        "features": [
+            {
+                "name": "android.hardware.telephony",
+                "required": false
+            }
+        ],
+        "dependencies": {
+            "implementation": []
+        },
+        "activities": [
+            {
+                "name": ".ComposeActivity",
+                "exported": true,
+                "theme": "@android:style/Theme.Translucent.NoTitleBar",
+                "intent_filters": [
+                    {
+                        "action": "android.intent.action.SENDTO",
+                        "category": [
+                            "android.intent.category.DEFAULT"
+                        ],
+                        "data": {
+                            "scheme": "sms"
+                        }
+                    },
+                    {
+                        "action": "android.intent.action.SENDTO",
+                        "category": [
+                            "android.intent.category.DEFAULT"
+                        ],
+                        "data": {
+                            "scheme": "smsto"
+                        }
+                    },
+                    {
+                        "action": "android.intent.action.SENDTO",
+                        "category": [
+                            "android.intent.category.DEFAULT"
+                        ],
+                        "data": {
+                            "scheme": "mms"
+                        }
+                    },
+                    {
+                        "action": "android.intent.action.SENDTO",
+                        "category": [
+                            "android.intent.category.DEFAULT"
+                        ],
+                        "data": {
+                            "scheme": "mmsto"
+                        }
+                    }
+                ]
+            }
+        ],
+        "services": [
+            {
+                "name": ".RespondViaMessageService",
+                "exported": true,
+                "permission": "android.permission.SEND_RESPOND_VIA_MESSAGE",
+                "intent_filters": [
+                    {
+                        "action": "android.intent.action.RESPOND_VIA_MESSAGE",
+                        "category": [
+                            "android.intent.category.DEFAULT"
+                        ],
+                        "data": {
+                            "scheme": "sms"
+                        }
+                    },
+                    {
+                        "action": "android.intent.action.RESPOND_VIA_MESSAGE",
+                        "category": [
+                            "android.intent.category.DEFAULT"
+                        ],
+                        "data": {
+                            "scheme": "smsto"
+                        }
+                    },
+                    {
+                        "action": "android.intent.action.RESPOND_VIA_MESSAGE",
+                        "category": [
+                            "android.intent.category.DEFAULT"
+                        ],
+                        "data": {
+                            "scheme": "mms"
+                        }
+                    },
+                    {
+                        "action": "android.intent.action.RESPOND_VIA_MESSAGE",
+                        "category": [
+                            "android.intent.category.DEFAULT"
+                        ],
+                        "data": {
+                            "scheme": "mmsto"
+                        }
+                    }
+                ]
+            }
+        ],
+        "receivers": [
+            {
+                "name": ".SmsDeliverReceiver",
+                "exported": true,
+                "permission": "android.permission.BROADCAST_SMS",
+                "intent_filters": [
+                    {
+                        "action": "android.provider.Telephony.SMS_DELIVER"
+                    }
+                ]
+            },
+            {
+                "name": ".MmsDeliverReceiver",
+                "exported": true,
+                "permission": "android.permission.BROADCAST_WAP_PUSH",
+                "intent_filters": [
+                    {
+                        "action": "android.provider.Telephony.WAP_PUSH_DELIVER",
+                        "data": {
+                            "mimeType": "application/vnd.wap.mms-message"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": ".SmsResultReceiver",
+                "exported": false,
+                "intent_filters": [
+                    {
+                        "action": [
+                            "com.blutrixx.plugins.nativephp_sms.SMS_SENT",
+                            "com.blutrixx.plugins.nativephp_sms.SMS_DELIVERED"
+                        ]
+                    }
+                ]
+            }
+        ],
+        "providers": []
+    },
+    "secrets": [],
+    "service_provider": "Blutrixx\\NativephpSms\\SmsServiceProvider"
+}
