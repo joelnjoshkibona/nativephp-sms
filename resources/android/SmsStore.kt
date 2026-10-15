@@ -1,10 +1,12 @@
 package com.blutrixx.plugins.nativephp_sms
 
+import android.app.role.RoleManager
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
+import android.os.Build
 import android.provider.Telephony
 import android.util.Log
 
@@ -19,8 +21,17 @@ object SmsStore {
 
     data class Inserted(val id: Long?, val threadId: Long?)
 
+    /**
+     * API 29+ asks RoleManager. Telephony.Sms.getDefaultSmsPackage() returns null for every
+     * app when the role holder is missing the READ_CELL_BROADCASTS app op (seen on the API 36
+     * emulator, for Google Messages too), which would make the real default look like it isn't.
+     */
     fun isDefaultSmsApp(context: Context): Boolean =
-        Telephony.Sms.getDefaultSmsPackage(context) == context.packageName
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            context.getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_SMS) == true
+        } else {
+            Telephony.Sms.getDefaultSmsPackage(context) == context.packageName
+        }
 
     fun threadIdFor(context: Context, address: String): Long? = try {
         Telephony.Threads.getOrCreateThreadId(context, address)

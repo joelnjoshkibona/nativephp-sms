@@ -62,7 +62,7 @@ object SmsFunctions {
                     "model" to Build.MODEL,
                     "package" to context.packageName,
                     "default_package" to defaultPackage,
-                    "is_default" to (defaultPackage == context.packageName),
+                    "is_default" to SmsStore.isDefaultSmsApp(context),
                     "role_available" to roleAvailable,
                     "role_held" to roleHeld,
                     "uses_role_manager" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q),

@@ -21,7 +21,7 @@ import org.json.JSONObject
  *   API 26-28: Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT
  *
  * The result is never inferred from the activity result code alone: after it returns, the
- * truth is Telephony.Sms.getDefaultSmsPackage().
+ * truth is SmsStore.isDefaultSmsApp().
  */
 class DefaultSmsFragment : Fragment() {
 
@@ -47,7 +47,7 @@ class DefaultSmsFragment : Fragment() {
         launched = true
 
         val context = requireContext()
-        if (Telephony.Sms.getDefaultSmsPackage(context) == context.packageName) {
+        if (SmsStore.isDefaultSmsApp(context)) {
             report(null)
             return
         }
@@ -77,7 +77,7 @@ class DefaultSmsFragment : Fragment() {
             if (isAdded) parentFragmentManager.beginTransaction().remove(this).commitAllowingStateLoss()
             return
         }
-        val granted = Telephony.Sms.getDefaultSmsPackage(host) == host.packageName
+        val granted = SmsStore.isDefaultSmsApp(host)
         val payload = JSONObject()
             .put("granted", granted)
             .put("default_package", Telephony.Sms.getDefaultSmsPackage(host) ?: "")
