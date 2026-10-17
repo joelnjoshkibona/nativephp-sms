@@ -68,9 +68,9 @@ class Sms
         return $this->call('Sms.SetBlocklist', ['numbers' => array_values($numbers)]);
     }
 
-    public function configure(?bool $ephemeral = null): array
+    public function configure(?bool $ephemeral = null, ?bool $keepAlive = null): array
     {
-        return $this->call('Sms.Configure', array_filter(['ephemeral' => $ephemeral], fn ($v) => $v !== null));
+        return $this->call('Sms.Configure', array_filter(['ephemeral' => $ephemeral, 'keep_alive' => $keepAlive], fn ($v) => $v !== null));
     }
 
     /** Returns and clears the native event journal written by the headless receivers. */

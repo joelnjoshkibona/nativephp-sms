@@ -24,6 +24,8 @@ export interface SmsStatus {
     battery_exempt: boolean
     blocklist_size: number
     ephemeral_enabled: boolean
+    keep_alive_enabled: boolean
+    keep_alive_running: boolean
 }
 
 export interface SmsThread {
@@ -165,8 +167,8 @@ export const sms = {
 
     setBlocklist: (numbers: string[]) => bridgeCall<{ size: number }>('Sms.SetBlocklist', { numbers }),
 
-    configure: (opts: { ephemeral?: boolean }) =>
-        bridgeCall<{ ephemeral_enabled: boolean }>('Sms.Configure', opts),
+    configure: (opts: { ephemeral?: boolean; keep_alive?: boolean }) =>
+        bridgeCall<{ ephemeral_enabled: boolean; keep_alive_enabled: boolean }>('Sms.Configure', opts),
 
     /** Returns and clears the native event journal (receive / send / status / compose / role). */
     async drainEvents(): Promise<SmsJournalEvent[]> {

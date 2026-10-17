@@ -9,3 +9,7 @@
 - Default-SMS checks use `RoleManager.isRoleHeld(ROLE_SMS)` on API 29+. `Telephony.Sms.getDefaultSmsPackage()`
   returned null for the real role holder on the API 36 emulator, so the app reported itself as not default,
   skipped writing sent messages to the system store and refused mark-read.
+- Optional always-on foreground service (`configure(keep_alive: true)`, type `remoteMessaging`) with a silent,
+  minimum-importance notification, restarted after boot and app updates. On Infinix (XOS, Griffin power manager)
+  swiping a third-party SMS app from recents killed it and Griffin then dropped `SMS_DELIVER`, losing the text
+  (Textra behaves the same). With the service running the swipe no longer kills the process and texts arrive.

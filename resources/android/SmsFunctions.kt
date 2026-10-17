@@ -70,7 +70,9 @@ object SmsFunctions {
                     "notifications_enabled" to NotificationManagerCompat.from(context).areNotificationsEnabled(),
                     "battery_exempt" to power.isIgnoringBatteryOptimizations(context.packageName),
                     "blocklist_size" to SmsPrefs.blocklistSize(context),
-                    "ephemeral_enabled" to SmsPrefs.isEphemeralEnabled(context)
+                    "ephemeral_enabled" to SmsPrefs.isEphemeralEnabled(context),
+                    "keep_alive_enabled" to SmsPrefs.isKeepAliveEnabled(context),
+                    "keep_alive_running" to KeepAliveService.running
                 )
             )
         }
@@ -222,7 +224,16 @@ object SmsFunctions {
     class Configure(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
             (parameters["ephemeral"] as? Boolean)?.let { SmsPrefs.setEphemeralEnabled(context, it) }
-            return BridgeResponse.success(mapOf("ephemeral_enabled" to SmsPrefs.isEphemeralEnabled(context)))
+            (parameters["keep_alive"] as? Boolean)?.let {
+                SmsPrefs.setKeepAliveEnabled(context, it)
+                if (it) KeepAliveService.startIfEnabled(context) else KeepAliveService.stop(context)
+            }
+            return BridgeResponse.success(
+                mapOf(
+                    "ephemeral_enabled" to SmsPrefs.isEphemeralEnabled(context),
+                    "keep_alive_enabled" to SmsPrefs.isKeepAliveEnabled(context)
+                )
+            )
         }
     }
 

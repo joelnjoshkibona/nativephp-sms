@@ -99,7 +99,7 @@
             "android_params": [
                 "context"
             ],
-            "description": "Toggle the optional ephemeral PHP hand-off from the receivers"
+            "description": "Toggle the optional ephemeral PHP hand-off and the always-on keep-alive service"
         },
         {
             "name": "Sms.DrainEvents",
@@ -140,7 +140,10 @@
             "android.permission.READ_PHONE_STATE",
             "android.permission.READ_CONTACTS",
             "android.permission.POST_NOTIFICATIONS",
-            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+            "android.permission.FOREGROUND_SERVICE",
+            "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
+            "android.permission.RECEIVE_BOOT_COMPLETED"
         ],
         "features": [
             {
@@ -239,6 +242,11 @@
                         }
                     }
                 ]
+            },
+            {
+                "name": ".KeepAliveService",
+                "exported": false,
+                "foregroundServiceType": "remoteMessaging"
             }
         ],
         "receivers": [
@@ -273,6 +281,18 @@
                         "action": [
                             "com.blutrixx.plugins.nativephp_sms.SMS_SENT",
                             "com.blutrixx.plugins.nativephp_sms.SMS_DELIVERED"
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": ".BootReceiver",
+                "exported": true,
+                "intent_filters": [
+                    {
+                        "action": [
+                            "android.intent.action.BOOT_COMPLETED",
+                            "android.intent.action.MY_PACKAGE_REPLACED"
                         ]
                     }
                 ]

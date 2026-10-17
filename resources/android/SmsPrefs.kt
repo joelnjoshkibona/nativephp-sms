@@ -12,6 +12,7 @@ object SmsPrefs {
     private const val FILE = "nativephp_sms"
     private const val KEY_BLOCKLIST = "blocklist"
     private const val KEY_EPHEMERAL = "ephemeral_enabled"
+    private const val KEY_KEEP_ALIVE = "keep_alive_enabled"
     private const val KEY_COMPOSE_TO = "pending_compose_to"
     private const val KEY_COMPOSE_BODY = "pending_compose_body"
     private const val KEY_COMPOSE_PENDING = "pending_compose"
@@ -54,6 +55,13 @@ object SmsPrefs {
 
     fun isEphemeralEnabled(context: Context): Boolean =
         prefs(context).getBoolean(KEY_EPHEMERAL, false)
+
+    fun setKeepAliveEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_KEEP_ALIVE, enabled).apply()
+    }
+
+    fun isKeepAliveEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_KEEP_ALIVE, false)
 
     fun setPendingCompose(context: Context, to: String, body: String) {
         prefs(context).edit()
