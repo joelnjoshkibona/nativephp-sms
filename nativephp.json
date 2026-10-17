@@ -298,7 +298,13 @@
                 ]
             }
         ],
-        "providers": []
+        "providers": [
+            {
+                "name": ".KeepAliveInitProvider",
+                "authorities": "${applicationId}.nativephp-sms-init",
+                "exported": false
+            }
+        ]
     },
     "secrets": [],
     "service_provider": "Blutrixx\\NativephpSms\\SmsServiceProvider"
