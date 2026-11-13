@@ -8,7 +8,7 @@
     ],
     "require": {
         "php": "^8.2",
-        "nativephp/mobile": "^3.3"
+        "nativephp/mobile": "^3.3 || ^4"
     },
     "require-dev": {
         "pestphp/pest": "^3.0"
