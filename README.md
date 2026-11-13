@@ -57,7 +57,7 @@ PHP (`Blutrixx\NativephpSms\Facades\Sms`) and JS (`sms` from `resources/js/sms.t
 
 | Method | Purpose |
 |---|---|
-| `status()` | API level, default-app state, permissions, role availability, ephemeral flag |
+| `status()` | API level, default-app state, permissions, role availability, ephemeral and keep-alive flags, `transsion` (Infinix, Tecno, itel) |
 | `requestDefault()` | Ask for the SMS role; result arrives as the `DefaultSmsResult` event (JS wrapper correlates by id) |
 | `listThreads()` / `listMessages()` / `countMessages()` | Read the system store |
 | `markRead()` | Mark a thread read |
@@ -68,9 +68,10 @@ PHP (`Blutrixx\NativephpSms\Facades\Sms`) and JS (`sms` from `resources/js/sms.t
 | `drainEvents()` | Read and clear the journal |
 | `takePendingCompose()` | Recipient/body from an `sms:` / `smsto:` link |
 | `requestBatteryOptimizationExemption()` | Open the system exemption prompt |
+| `openAutostartSettings()` | Phone Master's auto-start screen on Transsion phones, else the app's settings page. On Transsion the app must be allowed there, or nothing runs after a reboot: no keep-alive restart and no texts until the app is opened |
 
 Journal event types: `sms_received`, `sms_blocked`, `sms_receive_error`, `send_queued`, `send_failed`, `sms_sent`,
-`sms_delivered`, `mms_ignored`, `compose_requested`, `default_sms_result`, `ephemeral_ok`, `ephemeral_failed`, `ephemeral_timeout`.
+`sms_delivered`, `mms_ignored`, `compose_requested`, `default_sms_result`, `boot` (`reason`: `boot_completed` or `package_replaced`; `keep_alive`: `off`, `started` or `refused: …`), `ephemeral_ok`, `ephemeral_failed`, `ephemeral_timeout`.
 
 ## Default-SMS manifest
 

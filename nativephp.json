@@ -124,6 +124,14 @@
                 "activity"
             ],
             "description": "Open the system battery-optimisation exemption prompt"
+        },
+        {
+            "name": "Sms.OpenAutostartSettings",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.OpenAutostartSettings",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Open Phone Master's auto-start screen on Transsion phones, else the app's settings page"
         }
     ],
     "events": [

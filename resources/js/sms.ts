@@ -22,6 +22,8 @@ export interface SmsStatus {
     permissions: Record<string, boolean>
     notifications_enabled: boolean
     battery_exempt: boolean
+    /** Infinix, Tecno or itel: the app must be allowed in Phone Master's auto-start screen (openAutostartSettings) */
+    transsion: boolean
     blocklist_size: number
     ephemeral_enabled: boolean
     keep_alive_enabled: boolean
@@ -181,6 +183,10 @@ export const sms = {
 
     requestBatteryOptimizationExemption: () =>
         bridgeCall<{ launched: boolean }>('Sms.RequestBatteryOptimizationExemption'),
+
+    /** Phone Master's auto-start screen on Transsion phones, else the app's settings page. */
+    openAutostartSettings: () =>
+        bridgeCall<{ launched: boolean; screen: 'autostart' | 'app_details' }>('Sms.OpenAutostartSettings'),
 }
 
 export default sms

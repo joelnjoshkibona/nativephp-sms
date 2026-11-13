@@ -33,15 +33,22 @@ class KeepAliveService : Service() {
             private set
 
         /** Starts the service when the setting is on. Safe to call from anywhere; never throws. */
-        fun startIfEnabled(context: Context) {
-            if (!SmsPrefs.isKeepAliveEnabled(context)) return
-            try {
+        /** Starts the service when the setting is on. Returns "off", "started" or "refused: <reason>" for the journal. */
+        fun startIfEnabled(context: Context): String {
+            if (!SmsPrefs.isKeepAliveEnabled(context)) return "off"
+            return try {
                 ContextCompat.startForegroundService(context.applicationContext, Intent(context.applicationContext, KeepAliveService::class.java))
+                "started"
             } catch (e: Exception) {
                 // API 31+ refuses foreground-service starts from the background in most cases
                 Log.w(TAG, "could not start keep-alive service", e)
+                "refused: ${e.javaClass.simpleName}"
             }
         }
+
+        /** Infinix, Tecno and itel: their power manager drops background and boot events unless Phone Master allows auto-start. */
+        val isTranssion: Boolean
+            get() = android.os.Build.MANUFACTURER.lowercase().let { m -> m.contains("infinix") || m.contains("tecno") || m.contains("itel") || m.contains("transsion") }
 
         fun stop(context: Context) {
             context.applicationContext.stopService(Intent(context.applicationContext, KeepAliveService::class.java))

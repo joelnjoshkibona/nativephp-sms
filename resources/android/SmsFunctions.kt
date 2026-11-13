@@ -59,6 +59,7 @@ object SmsFunctions {
                 mapOf(
                     "api" to Build.VERSION.SDK_INT,
                     "manufacturer" to Build.MANUFACTURER,
+                    "transsion" to KeepAliveService.isTranssion,
                     "model" to Build.MODEL,
                     "package" to context.packageName,
                     "default_package" to defaultPackage,
@@ -263,6 +264,30 @@ object SmsFunctions {
                 BridgeResponse.success(mapOf("launched" to true))
             } catch (e: Exception) {
                 BridgeResponse.error("LAUNCH_FAILED", e.message ?: "Failed to open the battery-optimisation prompt")
+            }
+        }
+    }
+
+    /**
+     * Opens Phone Master's auto-start screen on Transsion phones (Infinix, Tecno, itel), where the app must be allowed or
+     * texts and the keep-alive restart are dropped after a reboot. Elsewhere, or if that screen is missing, it opens the
+     * app's own settings page. `screen` says which one opened.
+     */
+    class OpenAutostartSettings(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            if (KeepAliveService.isTranssion) {
+                try {
+                    activity.startActivity(Intent("com.cyin.himgr.applicationmanager.view.activities.AUTO_START_ACTIVITY"))
+                    return BridgeResponse.success(mapOf("launched" to true, "screen" to "autostart"))
+                } catch (e: Exception) {
+                    // an older or newer Phone Master without this screen: fall through to the app's settings
+                }
+            }
+            return try {
+                activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${activity.packageName}")))
+                BridgeResponse.success(mapOf("launched" to true, "screen" to "app_details"))
+            } catch (e: Exception) {
+                BridgeResponse.error("LAUNCH_FAILED", e.message ?: "Failed to open the auto-start settings")
             }
         }
     }

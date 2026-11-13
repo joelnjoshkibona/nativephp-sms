@@ -92,6 +92,12 @@ class Sms
         return $this->call('Sms.RequestBatteryOptimizationExemption');
     }
 
+    /** Phone Master's auto-start screen on Transsion phones (Infinix, Tecno, itel), else the app's settings page. */
+    public function openAutostartSettings(): array
+    {
+        return $this->call('Sms.OpenAutostartSettings');
+    }
+
     protected function call(string $function, array $params = []): array
     {
         if (! function_exists('nativephp_call')) {
