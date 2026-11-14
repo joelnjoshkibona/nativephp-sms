@@ -58,6 +58,8 @@ object SmsFunctions {
             if (SmsStore.isDefaultSmsApp(context)) {
                 SmsPrefs.markDefault(context)
                 SmsNotifier.cancelDefaultLost(context)
+                // texts another SMS app stored while this one was not the default
+                if (SmsImport.status(context)["state"] == "done") SmsImport.start(context)
             }
             val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
             return BridgeResponse.success(
@@ -75,7 +77,9 @@ object SmsFunctions {
                     "permissions" to RUNTIME_PERMISSIONS.associateWith { granted(context, it) },
                     "notifications_enabled" to NotificationManagerCompat.from(context).areNotificationsEnabled(),
                     "battery_exempt" to power.isIgnoringBatteryOptimizations(context.packageName),
-                    "blocklist_size" to SmsPrefs.blocklistSize(context),
+                    "blocklist_size" to Blocklist.size(context),
+                    "vault_has_key" to VaultStore.hasKey(context),
+                    "vault_messages" to VaultStore.count(context),
                     "ephemeral_enabled" to SmsPrefs.isEphemeralEnabled(context),
                     "keep_alive_enabled" to SmsPrefs.isKeepAliveEnabled(context),
                     "keep_alive_running" to KeepAliveService.running,
@@ -196,7 +200,10 @@ object SmsFunctions {
                         "stored" to result.stored,
                         "row_id" to (result.rowId ?: -1L),
                         "thread_id" to (result.threadId ?: -1L),
-                        "parts" to result.parts
+                        "parts" to result.parts,
+                        "message_id" to (result.messageId ?: ""),
+                        "thread" to (result.storeThreadId ?: ""),
+                        "duplicate" to result.duplicate
                     )
                 )
             } catch (e: SecurityException) {
@@ -221,7 +228,7 @@ object SmsFunctions {
         }
     }
 
-    /** Replaces the native blocklist used by the receive path (numbers are normalised natively). */
+    /** Replaces the blocked numbers used by the receive path (normalised natively; prefixes, keywords and private numbers stay). */
     class SetBlocklist(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
             // The bridge router hands JSON arrays over as org.json.JSONArray, not List.
@@ -230,8 +237,8 @@ object SmsFunctions {
                 is List<*> -> raw.mapNotNull { it?.toString() }
                 else -> emptyList()
             }
-            SmsPrefs.setBlocklist(context, numbers)
-            return BridgeResponse.success(mapOf("size" to SmsPrefs.blocklistSize(context)))
+            Blocklist.replaceNumbers(context, numbers)
+            return BridgeResponse.success(mapOf("size" to Blocklist.size(context)))
         }
     }
 
@@ -256,6 +263,41 @@ object SmsFunctions {
     class DrainEvents(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
             return BridgeResponse.success(mapOf("events_json" to EventJournal.drain(context).toString()))
+        }
+    }
+
+    /** Starts (or resumes) the first-run import of the system store into sms.sqlite; once done, copies only what is new. */
+    class StartImport(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            if (!granted(context, Manifest.permission.READ_SMS)) return BridgeResponse.error("PERMISSION_DENIED", "READ_SMS is not granted")
+            val started = SmsImport.start(context)
+            return BridgeResponse.success(SmsImport.status(context) + mapOf("started" to started))
+        }
+    }
+
+    /** The import's progress: state (none, running, interrupted, done), done, total, oldest_ts, error. */
+    class ImportStatus(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> = BridgeResponse.success(SmsImport.status(context))
+    }
+
+    /**
+     * DEBUG BUILDS ONLY: seal the vault to a test public key (32 bytes, base64) so the private and blocked routes can be
+     * exercised before vault setup exists (milestone 1.3). A release build refuses it.
+     */
+    class VaultSetTestKey(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            if (!VaultStore.isDebuggable(context)) return BridgeResponse.error("NOT_AVAILABLE", "only in a debug build")
+            val key = try {
+                android.util.Base64.decode(parameters["public_key"] as? String ?: "", android.util.Base64.NO_WRAP)
+            } catch (e: IllegalArgumentException) {
+                return BridgeResponse.error("INVALID", "public_key must be base64")
+            }
+            return try {
+                VaultStore.setPublicKey(context, key, test = true)
+                BridgeResponse.success(mapOf("vault_messages" to VaultStore.count(context)))
+            } catch (e: IllegalArgumentException) {
+                BridgeResponse.error("INVALID", e.message ?: "bad key")
+            }
         }
     }
 

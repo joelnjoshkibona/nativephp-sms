@@ -10,6 +10,13 @@
   read with `ReadEvents` and acknowledged per reader with `AckEvents`, so nothing is lost between a read and the app
   keeping it. The old file's lines are copied in once. `DrainEvents` still works.
 - `OpenStore`, so a reader can open the file read-only once it exists.
+- Receive pipeline: private number, blocklist, spam, normal. Vault texts are sealed with libsodium into
+  `vault.sqlite` and reach nothing else; until a key exists they wait in the quarantine file. The blocklist moves
+  into `sms.sqlite` with Keystore-encrypted patterns and gains prefix, wildcard and keyword rules.
+- Send: one status per message, from one callback per part; `sms_status` journal lines replace `sms_sent` and
+  `sms_delivered`. Send returns `message_id` and `thread`, and a repeated `client_ref` does not send twice.
+- First-run import (`StartImport`, `ImportStatus`): newest first, resumable, then catch-up of new system rows.
+- `GetStatus` adds `vault_has_key` and `vault_messages`. `VaultSetTestKey` for debug builds.
 - `android-tests/`: the Kotlin tested on the JVM with Robolectric (`./gradlew test`), and a `phpunit.xml` so Pest runs.
 
 ## Unreleased — Phase 0 spike

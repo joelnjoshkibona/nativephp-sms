@@ -73,6 +73,18 @@ class Sms
         return $this->call('Sms.Configure', array_filter(['ephemeral' => $ephemeral, 'keep_alive' => $keepAlive], fn ($v) => $v !== null));
     }
 
+    /** Starts (or resumes) the first-run import of the system store into sms.sqlite; once done, copies only what is new. */
+    public function startImport(): array
+    {
+        return $this->call('Sms.StartImport');
+    }
+
+    /** ['state' => none|running|interrupted|done, 'done' => int, 'total' => int, 'oldest_ts' => ms, 'error' => string, ...] */
+    public function importStatus(): array
+    {
+        return $this->call('Sms.ImportStatus');
+    }
+
     /** Opens (and on first use creates) sms.sqlite: ['path' => ..., 'version' => schema version]. */
     public function openStore(): array
     {

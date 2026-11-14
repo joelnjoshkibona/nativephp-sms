@@ -134,6 +134,30 @@
             "description": "Mark the journal as kept by a reader up to an event id; events every reader has kept are pruned after 14 days"
         },
         {
+            "name": "Sms.StartImport",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.StartImport",
+            "android_params": [
+                "context"
+            ],
+            "description": "Start or resume the first-run import of the system SMS store into sms.sqlite (newest first); once done, copy only rows that are new"
+        },
+        {
+            "name": "Sms.ImportStatus",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.ImportStatus",
+            "android_params": [
+                "context"
+            ],
+            "description": "The import progress: state (none, running, interrupted, done), done, total, oldest_ts, error"
+        },
+        {
+            "name": "Sms.VaultSetTestKey",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultSetTestKey",
+            "android_params": [
+                "context"
+            ],
+            "description": "Debug builds only: seal the vault to a test public key (base64, 32 bytes) before vault setup exists"
+        },
+        {
             "name": "Sms.TakePendingCompose",
             "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.TakePendingCompose",
             "android_params": [
@@ -192,7 +216,10 @@
             }
         ],
         "dependencies": {
-            "implementation": []
+            "implementation": [
+                "com.goterl:lazysodium-android:5.1.0@aar",
+                "net.java.dev.jna:jna:5.14.0@aar"
+            ]
         },
         "activities": [
             {

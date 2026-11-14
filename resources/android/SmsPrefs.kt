@@ -3,10 +3,9 @@ package com.blutrixx.plugins.nativephp_sms
 import android.content.Context
 
 /**
- * Small native-side settings store. Everything the headless receive path needs
- * (blocklist, whether to call PHP at all, a pending "compose" request) must be
- * readable WITHOUT booting PHP, so it lives in SharedPreferences, not in the
- * Laravel database.
+ * Small native-side settings store. Flags the headless paths need (whether to call PHP at all, a pending "compose"
+ * request, the last boot) must be readable WITHOUT booting PHP, so they live in SharedPreferences, not in the Laravel
+ * database. Messages, the blocklist and the journal live in sms.sqlite (SmsDb).
  */
 object SmsPrefs {
     private const val FILE = "nativephp_sms"
@@ -41,18 +40,11 @@ object SmsPrefs {
         return if (digits.length > 9) digits.takeLast(9) else digits
     }
 
-    fun setBlocklist(context: Context, numbers: Collection<String>) {
-        val normalized = numbers.map { normalize(it) }.filter { it.isNotEmpty() }.toSet()
-        prefs(context).edit().putStringSet(KEY_BLOCKLIST, normalized).apply()
-    }
-
-    fun blocklistSize(context: Context): Int =
-        prefs(context).getStringSet(KEY_BLOCKLIST, emptySet())?.size ?: 0
-
-    fun isBlocked(context: Context, address: String?): Boolean {
-        val key = normalize(address)
-        if (key.isEmpty()) return false
-        return prefs(context).getStringSet(KEY_BLOCKLIST, emptySet())?.contains(key) == true
+    /** The blocked numbers kept here before sms.sqlite (Blocklist moves them once); answers them and forgets them. */
+    fun takeLegacyBlocklist(context: Context): Set<String> {
+        val old = prefs(context).getStringSet(KEY_BLOCKLIST, emptySet()).orEmpty().toSet()
+        prefs(context).edit().remove(KEY_BLOCKLIST).apply()
+        return old
     }
 
     fun setEphemeralEnabled(context: Context, enabled: Boolean) {

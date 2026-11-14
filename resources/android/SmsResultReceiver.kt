@@ -10,11 +10,10 @@ import android.util.Log
 import org.json.JSONObject
 
 /**
- * SmsManager sentIntent / deliveredIntent callbacks. Internal only (exported=false); the
- * PendingIntents are created by SmsSender. Updates the provider row (when one was written)
- * and journals the outcome. For a multipart message each part reports separately, so every
- * update here is idempotent: any failed part marks the message failed, and a later OK part
- * never flips it back.
+ * SmsManager sentIntent / deliveredIntent callbacks, one pair per part. Internal only (exported=false); the PendingIntents
+ * are created by SmsSender. Each part's result is counted on the message's row in sms.sqlite (MessageStore.countPart), and
+ * only a change of the message's status is acted on: the system store row follows, one `sms_status` journal line is
+ * written and the PHP hand-off runs. A part that fails fails the message; a later OK part never flips it back.
  */
 class SmsResultReceiver : BroadcastReceiver() {
 
@@ -56,32 +55,41 @@ class SmsResultReceiver : BroadcastReceiver() {
         val pending = goAsync()
         val finished = java.util.concurrent.atomic.AtomicBoolean(false)
         fun finish() { if (finished.compareAndSet(false, true)) pending.finish() }
+        val messageId = intent.getStringExtra("message_id")
+        val part = intent.getIntExtra("part", 0)
         Background.executor.execute {
             var handedToEphemeral = false
             try {
+                val change = messageId?.let { id -> SmsDb.write(appContext) { db -> MessageStore.countPart(db, id, event, finalOk) } }
+                if (messageId != null && change == null) {
+                    Log.i(TAG, "part $part of $clientRef: $event ok=$finalOk (message status unchanged)")
+                    return@execute
+                }
+                val status = change?.to ?: if (finalOk) event else "failed"
                 if (rowId >= 0) {
-                    when {
-                        // OK only advances a row still in the outbox, so a later OK part never undoes a failed one
-                        event == "sent" && finalOk -> SmsStore.updateOutgoing(
+                    when (status) {
+                        "sent" -> SmsStore.updateOutgoing(
                             appContext, rowId, Telephony.Sms.MESSAGE_TYPE_SENT, null,
                             intArrayOf(Telephony.Sms.MESSAGE_TYPE_OUTBOX, Telephony.Sms.MESSAGE_TYPE_QUEUED)
                         )
-                        event == "sent" -> SmsStore.updateOutgoing(appContext, rowId, Telephony.Sms.MESSAGE_TYPE_FAILED, Telephony.Sms.STATUS_FAILED)
-                        event == "delivered" && finalOk -> SmsStore.updateOutgoing(appContext, rowId, null, Telephony.Sms.STATUS_COMPLETE)
-                        else -> SmsStore.updateOutgoing(appContext, rowId, null, Telephony.Sms.STATUS_FAILED)
+                        "delivered" -> SmsStore.updateOutgoing(appContext, rowId, null, Telephony.Sms.STATUS_COMPLETE)
+                        "failed" -> SmsStore.updateOutgoing(appContext, rowId, if (event == "sent") Telephony.Sms.MESSAGE_TYPE_FAILED else null, Telephony.Sms.STATUS_FAILED)
                     }
                 }
                 val payload = JSONObject()
                     .put("client_ref", clientRef)
+                    .put("message_id", messageId ?: JSONObject.NULL)
+                    .put("status", status)
                     .put("event", event)
-                    .put("ok", finalOk)
+                    .put("part", part)
+                    .put("parts", change?.partsTotal ?: intent.getIntExtra("parts", 1))
                     .put("result_code", code)
                     .put("delivery_status", finalDeliveryStatus ?: JSONObject.NULL)
                     .put("to", to)
                     .put("row_id", if (rowId >= 0) rowId else JSONObject.NULL)
                     .put("sub_id", intent.getIntExtra("sub_id", -1))
-                EventJournal.append(appContext, "sms_$event", payload)
-                Log.i(TAG, "event=$event client_ref=$clientRef ok=$finalOk resultCode=$code")
+                EventJournal.append(appContext, "sms_status", payload)
+                Log.i(TAG, "message $clientRef is now $status")
 
                 EphemeralDispatch.dispatch(appContext, "sms:status", payload) { finish() }
                 handedToEphemeral = true

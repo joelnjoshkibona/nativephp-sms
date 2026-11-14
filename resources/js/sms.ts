@@ -25,6 +25,9 @@ export interface SmsStatus {
     /** Infinix, Tecno or itel: the app must be allowed in Phone Master's auto-start screen (openAutostartSettings) */
     transsion: boolean
     blocklist_size: number
+    /** A vault public key exists (vault setup, or the debug test key): blocked and private texts are sealed, not quarantined. */
+    vault_has_key: boolean
+    vault_messages: number
     ephemeral_enabled: boolean
     keep_alive_enabled: boolean
     keep_alive_running: boolean
@@ -74,6 +77,24 @@ export interface SmsSendResult {
     row_id: number
     thread_id: number
     parts: number
+    /** The message in sms.sqlite (one status for every part: queued, sent, delivered, failed) and its thread. */
+    message_id: string
+    thread: string
+    /** The client_ref had been sent already: this is that message, not a second send. */
+    duplicate: boolean
+}
+
+export interface SmsImportStatus {
+    /** none: never started; interrupted: started and the app was killed (StartImport carries on) */
+    state: 'none' | 'running' | 'interrupted' | 'done'
+    running: boolean
+    done: number
+    total: number
+    /** the date of the oldest text copied so far (the import goes newest first) */
+    oldest_ts: number
+    started_at: number
+    finished_at: number
+    error: string
 }
 
 export interface SmsJournalEvent {
@@ -185,6 +206,14 @@ export const sms = {
         bridgeCall<{ ephemeral_enabled: boolean; keep_alive_enabled: boolean }>('Sms.Configure', opts),
 
     /** Returns and clears the native event journal (receive / send / status / compose / role). */
+    /** Starts (or resumes) the first-run import of the system store; once done, copies only what is new. */
+    startImport: () => bridgeCall<SmsImportStatus & { started: boolean }>('Sms.StartImport'),
+
+    importStatus: () => bridgeCall<SmsImportStatus>('Sms.ImportStatus'),
+
+    /** Debug builds only: seal the vault to a test public key (base64 of 32 bytes) before vault setup exists. */
+    vaultSetTestKey: (publicKey: string) => bridgeCall<{ vault_messages: number }>('Sms.VaultSetTestKey', { public_key: publicKey }),
+
     /** Opens (and on first use creates) sms.sqlite. */
     openStore: () => bridgeCall<{ path: string; version: number }>('Sms.OpenStore'),
 

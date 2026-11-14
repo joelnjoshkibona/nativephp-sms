@@ -25,6 +25,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
     implementation("androidx.activity:activity-ktx:1.9.3")
+    // the plugin's own dependencies (nativephp.json android.dependencies): compiled against, never run on the JVM
+    implementation("com.goterl:lazysodium-android:5.1.0@aar")
+    implementation("net.java.dev.jna:jna:5.14.0@aar")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")
     testImplementation("androidx.test:core-ktx:1.6.1")

@@ -26,6 +26,43 @@ object SmsNotifier {
         manager.createNotificationChannel(channel)
     }
 
+    private const val PRIVATE_ID = 7302
+
+    /**
+     * A text from a private number: "New message" and nothing else, no name, no number, no words, so the notification
+     * shade never shows what the vault holds. Returns true when it was posted.
+     */
+    fun notifyPrivate(context: Context): Boolean {
+        val appContext = context.applicationContext
+        return try {
+            val compat = NotificationManagerCompat.from(appContext)
+            if (!compat.areNotificationsEnabled()) return false
+            ensureChannel(appContext)
+            val launch = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName)?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            val icon = appContext.applicationInfo.icon.takeIf { it != 0 } ?: android.R.drawable.sym_action_chat
+            val builder = NotificationCompat.Builder(appContext, CHANNEL_ID)
+                .setSmallIcon(icon)
+                .setContentTitle("New message")
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+                .setAutoCancel(true)
+            launch?.let {
+                builder.setContentIntent(PendingIntent.getActivity(appContext, PRIVATE_ID, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+            }
+            compat.notify(PRIVATE_ID, builder.build())
+            true
+        } catch (e: SecurityException) {
+            Log.w(TAG, "notify rejected (POST_NOTIFICATIONS not granted?)", e)
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "notify failed", e)
+            false
+        }
+    }
+
     /** Returns true when a notification was actually posted. */
     fun notifyIncoming(context: Context, threadId: Long?, address: String, body: String): Boolean {
         val appContext = context.applicationContext
