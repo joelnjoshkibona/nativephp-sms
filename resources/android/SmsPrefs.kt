@@ -15,6 +15,7 @@ object SmsPrefs {
     private const val KEY_COMPOSE_TO = "pending_compose_to"
     private const val KEY_COMPOSE_BODY = "pending_compose_body"
     private const val KEY_COMPOSE_PENDING = "pending_compose"
+    private const val KEY_OPEN_THREAD = "pending_open_thread"
     private const val KEY_BOOT_AT = "last_boot_at"
     private const val KEY_BOOT_REASON = "last_boot_reason"
     private const val KEY_BOOT_KEEP_ALIVE = "last_boot_keep_alive"
@@ -107,5 +108,18 @@ object SmsPrefs {
         val result = Pair(p.getString(KEY_COMPOSE_TO, "") ?: "", p.getString(KEY_COMPOSE_BODY, "") ?: "")
         p.edit().remove(KEY_COMPOSE_PENDING).remove(KEY_COMPOSE_TO).remove(KEY_COMPOSE_BODY).apply()
         return result
+    }
+
+    /** The conversation a tapped notification asked to open (OpenThreadActivity). */
+    fun setPendingOpen(context: Context, threadId: String) {
+        prefs(context).edit().putString(KEY_OPEN_THREAD, threadId).apply()
+    }
+
+    /** Returns the conversation to open once, then forgets it; null when none. */
+    fun takePendingOpen(context: Context): String? {
+        val p = prefs(context)
+        val id = p.getString(KEY_OPEN_THREAD, null) ?: return null
+        p.edit().remove(KEY_OPEN_THREAD).apply()
+        return id
     }
 }

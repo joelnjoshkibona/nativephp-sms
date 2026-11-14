@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased: the everyday app (Phase 1, milestone 1.2)
+
+- Names for numbers: `SyncContacts` fills `contact_cache` from the phone's contacts (also when the import ends).
+- Search: migration 2 adds an FTS4 index over message words, kept by triggers; `Search` answers ids newest first.
+  FTS4 is used because Android's own SQLite has no FTS5.
+- Notifications per conversation with Reply and Mark as read from the shade, and a tap that opens the conversation
+  (`OpenThreadActivity`, `TakePendingOpen`). A muted conversation, or the one on screen (`SetActiveThread`), posts
+  nothing; reading, muting or deleting one clears its notification.
+
 ## Unreleased: the app's own store (Phase 1, milestone 1.1)
 
 - `sms.sqlite`, the plugin's own SQLite file beside the host's Laravel database, with Kotlin its only writer: WAL,

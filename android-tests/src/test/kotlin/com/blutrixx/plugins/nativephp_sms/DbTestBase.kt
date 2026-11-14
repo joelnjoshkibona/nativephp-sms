@@ -44,7 +44,7 @@ abstract class DbTestBase {
     /** Every text column of every table in sms.sqlite, joined: to prove something is NOT anywhere in it. */
     protected fun everythingInSmsDb(): String {
         val db = SmsDb.get(context)
-        val tables = db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%'", null)
+        val tables = db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%' AND name NOT LIKE 'messages_fts%'", null)
             .use { c -> generateSequence { if (c.moveToNext()) c.getString(0) else null }.toList() }
         return tables.joinToString("\n") { t ->
             db.rawQuery("SELECT * FROM $t", null).use { c ->

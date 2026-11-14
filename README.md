@@ -39,6 +39,18 @@ sealed when a key is set.
 The blocklist lives in `sms.sqlite` with each pattern encrypted under an Android Keystore key, so matching works
 without the vault's passcode. The old SharedPreferences set is moved in once.
 
+### Notifications
+
+One notification per conversation (`MessagingStyle`), with its unread texts and the sender's contact name:
+
+- **Reply** sends from the shade, through the normal send path, and marks the conversation read.
+- **Mark as read** reads the conversation and clears the notification.
+- **Tap** goes through `OpenThreadActivity`, which leaves the conversation for the app (`takePendingOpen`) and brings it
+  to the front.
+
+A muted conversation posts nothing, and neither does the one the app says is on screen (`setActiveThread`). Marking a
+conversation read, muting it or deleting it clears its notification.
+
 ### Send
 
 `send()` writes the message's row first (`queued`, with its part count), then gives **each part its own** sent and
@@ -121,6 +133,9 @@ PHP (`Blutrixx\NativephpSms\Facades\Sms`) and JS (`sms` from `resources/js/sms.t
 | `saveTemplate()` / `deleteTemplate()` | Saved replies (title, words, a unique shortcut) |
 | `saveScheduled()` / `deleteScheduled()` | Texts to send later, to a conversation or a number; only a waiting one changes (sending them when due is the app's next step) |
 | `setSetting(key, value)` | The app's own settings in `sms.sqlite` (keys under `app.`) |
+| `syncContacts()` | Copies the phone's contacts into `sms.sqlite` (`contact_cache`) as names for numbers (needs READ_CONTACTS); also runs when the import ends |
+| `search(q, limit)` | Message ids whose words match (each word or its start, any order), newest first, from an FTS4 index kept by triggers |
+| `setActiveThread(id)` / `takePendingOpen()` | The conversation on screen posts no notification; the conversation a tapped notification asked to open, once |
 | `startImport()` / `importStatus()` | The first-run import and its progress (`state`: none, running, interrupted, done; `done`, `total`, `oldest_ts`) |
 | `vaultSetTestKey(publicKey)` (JS) | Debug builds only: seal to a test key before vault setup exists |
 | `openStore()` | Open (on first use create and migrate) `sms.sqlite`; returns its `path` and schema `version` |

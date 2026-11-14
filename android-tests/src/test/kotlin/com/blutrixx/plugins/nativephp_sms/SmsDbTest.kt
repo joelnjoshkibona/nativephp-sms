@@ -23,7 +23,7 @@ class SmsDbTest : DbTestBase() {
 
     @Test fun anEmptyFileIsMigratedToTheLatestVersionWithEveryTable() {
         assertEquals(SmsDb.MIGRATIONS.size, SmsDb.version(context))
-        val tables = SmsDb.get(context).rawQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%' ORDER BY name", null)
+        val tables = SmsDb.get(context).rawQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%' AND name NOT LIKE 'messages_fts%' ORDER BY name", null)
             .use { c -> generateSequence { if (c.moveToNext()) c.getString(0) else null }.toList() }
         assertEquals(
             listOf("attachments", "blocklist", "change_log", "contact_cache", "events", "messages", "paired_devices", "scheduled", "settings", "spam_senders", "templates", "threads"),
@@ -77,7 +77,8 @@ class SmsDbTest : DbTestBase() {
      */
     @Test fun theSchemaFileMatchesTheMigrations() {
         val schema = SmsDb.get(context).rawQuery(
-            "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%' ORDER BY CASE type WHEN 'table' THEN 0 WHEN 'index' THEN 1 ELSE 2 END, name",
+            // the search index's own tables (messages_fts_content, _segments …) are made by its CREATE VIRTUAL TABLE
+            "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%' AND name NOT LIKE 'messages_fts_%' ORDER BY CASE type WHEN 'table' THEN 0 WHEN 'index' THEN 1 ELSE 2 END, name",
             null,
         ).use { c -> generateSequence { if (c.moveToNext()) c.getString(0) + ";" else null }.joinToString("\n\n") }
         val text = "-- sms.sqlite, schema version ${SmsDb.MIGRATIONS.size}. Written by SmsDbTest from SmsDb.MIGRATIONS; do not edit.\n\n$schema\n"

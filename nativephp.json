@@ -222,6 +222,38 @@
             "description": "Set or remove one of the app's settings (keys under app.)"
         },
         {
+            "name": "Sms.SyncContacts",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SyncContacts",
+            "android_params": [
+                "context"
+            ],
+            "description": "Copy the phone contacts into sms.sqlite as names for numbers (needs READ_CONTACTS)"
+        },
+        {
+            "name": "Sms.Search",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.Search",
+            "android_params": [
+                "context"
+            ],
+            "description": "Messages whose words match a query (each word or its start), newest first"
+        },
+        {
+            "name": "Sms.SetActiveThread",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SetActiveThread",
+            "android_params": [
+                "context"
+            ],
+            "description": "The conversation now on screen: its texts post no notification (no id: none)"
+        },
+        {
+            "name": "Sms.TakePendingOpen",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.TakePendingOpen",
+            "android_params": [
+                "context"
+            ],
+            "description": "The conversation a tapped notification asked to open, once"
+        },
+        {
             "name": "Sms.TakePendingCompose",
             "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.TakePendingCompose",
             "android_params": [
@@ -328,6 +360,11 @@
                         }
                     }
                 ]
+            },
+            {
+                "name": ".OpenThreadActivity",
+                "exported": false,
+                "theme": "@android:style/Theme.Translucent.NoTitleBar"
             }
         ],
         "services": [
@@ -424,6 +461,18 @@
                         "action": [
                             "android.intent.action.BOOT_COMPLETED",
                             "android.intent.action.MY_PACKAGE_REPLACED"
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": ".NotificationActionReceiver",
+                "exported": false,
+                "intent_filters": [
+                    {
+                        "action": [
+                            "com.blutrixx.plugins.nativephp_sms.REPLY",
+                            "com.blutrixx.plugins.nativephp_sms.MARK_READ"
                         ]
                     }
                 ]

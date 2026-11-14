@@ -217,5 +217,15 @@ object SmsDb {
         );
         """.trimIndent() + "\n" +
             changeTriggers("threads", "thread") + changeTriggers("messages", "message") + changeTriggers("attachments", "attachment"),
+        // 2: search over the words of messages (FTS4: Android's own SQLite has FTS3/4, not FTS5), kept by triggers.
+        //    The vault is in vault.sqlite, so it is never indexed.
+        """
+        CREATE VIRTUAL TABLE messages_fts USING fts4(content="messages", body, tokenize=unicode61);
+        CREATE TRIGGER messages_fts_insert AFTER INSERT ON messages BEGIN INSERT INTO messages_fts (docid, body) VALUES (NEW.rowid, NEW.body); END;
+        CREATE TRIGGER messages_fts_delete BEFORE DELETE ON messages BEGIN DELETE FROM messages_fts WHERE docid = OLD.rowid; END;
+        CREATE TRIGGER messages_fts_before_update BEFORE UPDATE OF body ON messages BEGIN DELETE FROM messages_fts WHERE docid = OLD.rowid; END;
+        CREATE TRIGGER messages_fts_after_update AFTER UPDATE OF body ON messages BEGIN INSERT INTO messages_fts (docid, body) VALUES (NEW.rowid, NEW.body); END;
+        INSERT INTO messages_fts (messages_fts) VALUES ('rebuild');
+        """.trimIndent(),
     )
 }

@@ -122,6 +122,7 @@ object SmsImport {
             SmsDb.setSetting(db, Keys.STATE, "done")
             SmsDb.setSetting(db, Keys.FINISHED_AT, System.currentTimeMillis().toString())
         }
+        if (ContactSync.canRead(context)) runCatching { ContactSync.sync(context) } // names for the conversations just made
         EventJournal.append(
             context, "import_done",
             JSONObject().put("done", SmsDb.setting(context, Keys.DONE)).put("ms", System.currentTimeMillis() - began)

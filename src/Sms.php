@@ -187,6 +187,34 @@ class Sms
         return $this->call('Sms.SetSetting', ['key' => $key, 'value' => $value]);
     }
 
+    /** Copies the phone's contacts into sms.sqlite as names for numbers: ['named' => n], or PERMISSION_DENIED. */
+    public function syncContacts(): array
+    {
+        return $this->call('Sms.SyncContacts');
+    }
+
+    /** Message ids whose words match $q (each word or its start), newest first. */
+    public function search(string $q, int $limit = 100): array
+    {
+        $result = $this->call('Sms.Search', ['q' => $q, 'limit' => $limit]);
+        if (($result['status'] ?? null) === 'error') {
+            return $result;
+        }
+        $hits = json_decode($result['hits_json'] ?? '[]', true);
+
+        return ['hits' => is_array($hits) ? $hits : []];
+    }
+
+    public function setActiveThread(?string $id): array
+    {
+        return $this->call('Sms.SetActiveThread', $id === null ? [] : ['id' => $id]);
+    }
+
+    public function takePendingOpen(): array
+    {
+        return $this->call('Sms.TakePendingOpen');
+    }
+
     protected function call(string $function, array $params = []): array
     {
         if (! function_exists('nativephp_call')) {

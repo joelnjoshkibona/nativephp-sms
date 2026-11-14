@@ -266,6 +266,43 @@ object SmsFunctions {
         }
     }
 
+    // -- the everyday app: contacts, search, notifications ---------------------------------------------------------------
+
+    /** Copies the phone's contacts into sms.sqlite (names for numbers). PERMISSION_DENIED without READ_CONTACTS. */
+    class SyncContacts(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val n = ContactSync.sync(context)
+            return if (n < 0) BridgeResponse.error("PERMISSION_DENIED", "READ_CONTACTS is not granted") else BridgeResponse.success(mapOf("named" to n))
+        }
+    }
+
+    /** Messages whose words match q (each word, or the start of one), newest first: ids, threads and times. */
+    class Search(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val hits = MessageSearch.search(context, parameters["q"] as? String ?: "", intParam(parameters, "limit") ?: 100)
+            return BridgeResponse.success(mapOf(
+                "ids" to hits.map { it.id },
+                "hits_json" to org.json.JSONArray(hits.map { org.json.JSONObject().put("id", it.id).put("thread_id", it.threadId).put("ts", it.ts) }).toString(),
+            ))
+        }
+    }
+
+    /** The conversation now on screen (id), or none (no id): its texts post no notification, and its notification goes. */
+    class SetActiveThread(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val id = (parameters["id"] as? String)?.takeIf { it.isNotEmpty() }
+            SmsNotifier.activeThread = id
+            id?.let { SmsNotifier.cancelThread(context, it) }
+            return BridgeResponse.success(mapOf("active" to (id ?: "")))
+        }
+    }
+
+    /** The conversation a tapped notification asked to open, once (empty when none). */
+    class TakePendingOpen(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> =
+            BridgeResponse.success(mapOf("thread" to (SmsPrefs.takePendingOpen(context) ?: "")))
+    }
+
     // -- writes for the app's Laravel, which opens sms.sqlite read-only (StoreWrites) --------------------------------------
 
     private fun str(parameters: Map<String, Any>, key: String): String? = (parameters[key] as? String)?.takeIf { it.isNotEmpty() }

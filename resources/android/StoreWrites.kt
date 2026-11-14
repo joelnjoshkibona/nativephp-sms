@@ -54,6 +54,7 @@ object StoreWrites {
             db.update("threads", values, "id = ?", arrayOf(id))
         }
         systemThreadId?.let { SmsStore.markThreadRead(context, it) }
+        if (changes["read"]?.let { bool(it, "read") } == true || changes["muted"]?.let { bool(it, "muted") } == true) SmsNotifier.cancelThread(context, id)
     }
 
     fun deleteThread(context: Context, id: String) {
@@ -65,6 +66,7 @@ object StoreWrites {
             db.delete("threads", "id = ?", arrayOf(id)) // its messages and attachments follow (ON DELETE CASCADE)
             sys
         }
+        SmsNotifier.cancelThread(context, id)
         if (systemThreadId != null && SmsStore.isDefaultSmsApp(context)) {
             try {
                 context.contentResolver.delete(ContentUris.withAppendedId(Telephony.Threads.CONTENT_URI, systemThreadId), null, null)

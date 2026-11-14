@@ -9,7 +9,8 @@ import org.json.JSONObject
  *   1. a private number      -> sealed into the vault; "New message" with no name or words, or nothing if silent
  *   2. the blocklist         -> sealed into the vault; no notification
  *   3. a reported spammer    -> sms.sqlite (thread in Spam) and the system store; no notification
- *   4. everyone else         -> the system store, sms.sqlite and a notification
+ *   4. everyone else         -> the system store, sms.sqlite and the conversation's notification (none when it is muted
+ *                               or open on screen)
  * The blocklist is checked before anything else knows the sender, so a rule you set wins even over a saved contact.
  * A vault text never reaches sms.sqlite, the system store, change_log, the journal's details or a notification's text.
  */
@@ -119,7 +120,10 @@ object ReceivePipeline {
             EventJournal.append(context, "store_error", JSONObject().put("error", e.message ?: e.javaClass.simpleName))
             null
         }
-        val notified = notify && SmsNotifier.notifyIncoming(context, inserted.threadId, d.address, d.body)
+        val notified = notify && when (val thread = saved?.threadId) {
+            null -> SmsNotifier.notifyIncoming(context, inserted.threadId, d.address, d.body) // the store write failed: the plain one
+            else -> SmsNotifier.notifyThread(context, thread, d.address) == null
+        }
         return Outcome(route, saved?.messageId, saved?.threadId, inserted.id, notified = notified)
     }
 }

@@ -206,6 +206,21 @@ export const sms = {
         bridgeCall<{ ephemeral_enabled: boolean; keep_alive_enabled: boolean }>('Sms.Configure', opts),
 
     /** Returns and clears the native event journal (receive / send / status / compose / role). */
+    /** Copies the phone's contacts into sms.sqlite as names for numbers. */
+    syncContacts: () => bridgeCall<{ named: number }>('Sms.SyncContacts'),
+
+    /** Messages whose words match q (each word or its start), newest first. */
+    async search(q: string, limit = 100): Promise<{ id: string; thread_id: string; ts: number }[]> {
+        const result = await bridgeCall<{ hits_json: string }>('Sms.Search', { q, limit })
+        try { return JSON.parse(result.hits_json || '[]') } catch { return [] }
+    },
+
+    /** The conversation on screen (null: none): its texts post no notification. */
+    setActiveThread: (id: string | null) => bridgeCall<{ active: string }>('Sms.SetActiveThread', id ? { id } : {}),
+
+    /** The conversation a tapped notification asked to open, once ('' when none). */
+    takePendingOpen: () => bridgeCall<{ thread: string }>('Sms.TakePendingOpen'),
+
     /** Starts (or resumes) the first-run import of the system store; once done, copies only what is new. */
     startImport: () => bridgeCall<SmsImportStatus & { started: boolean }>('Sms.StartImport'),
 
