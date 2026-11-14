@@ -77,6 +77,8 @@ export interface SmsSendResult {
 }
 
 export interface SmsJournalEvent {
+    /** The journal row's id (sms.sqlite events), the cursor for readEvents and ackEvents. */
+    id?: number
     type: string
     at: number
     data: Record<string, unknown>
@@ -183,6 +185,20 @@ export const sms = {
         bridgeCall<{ ephemeral_enabled: boolean; keep_alive_enabled: boolean }>('Sms.Configure', opts),
 
     /** Returns and clears the native event journal (receive / send / status / compose / role). */
+    /** Opens (and on first use creates) sms.sqlite. */
+    openStore: () => bridgeCall<{ path: string; version: number }>('Sms.OpenStore'),
+
+    /** Journal events after `after`, or after what `reader` last acknowledged; nothing is removed. */
+    async readEvents(opts: { reader?: string; after?: number; limit?: number }): Promise<{ events: SmsJournalEvent[]; lastId: number }> {
+        const result = await bridgeCall<{ events_json: string; last_id: number }>('Sms.ReadEvents', opts)
+        let events: SmsJournalEvent[] = []
+        try { events = JSON.parse(result.events_json || '[]') } catch { /* an unreadable page is an empty one */ }
+        return { events, lastId: Number(result.last_id ?? opts.after ?? 0) }
+    },
+
+    /** Marks the journal as kept by `reader` up to `upTo`. */
+    ackEvents: (reader: string, upTo: number) => bridgeCall<{ reader: string; acked: number }>('Sms.AckEvents', { reader, up_to: upTo }),
+
     async drainEvents(): Promise<SmsJournalEvent[]> {
         const result = await bridgeCall<{ events_json: string }>('Sms.DrainEvents')
         try { return JSON.parse(result.events_json || '[]') } catch { return [] }

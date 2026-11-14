@@ -11,11 +11,24 @@ receive, store, notify, send, and read the system SMS store. The Kotlin layer do
 > Kotlin owns **blocklist check → system-store write → notification → journal**. PHP is optional enrichment.
 
 A `BroadcastReceiver` has no Activity, so it cannot raise a WebView event. Incoming messages are therefore handled
-entirely natively and appended to a JSONL journal (`sms_events.jsonl`, 512 KB cap) that the UI drains with
-`Sms::drainEvents()`. If enabled, the event is also handed to PHP through the *ephemeral* runtime
+entirely natively and appended to a journal (the `events` table in `sms.sqlite`) that the app reads with
+`Sms::readEvents()` and acknowledges with `Sms::ackEvents()`, so an app that dies between the two reads the same events
+again instead of losing them. If enabled, the event is also handed to PHP through the *ephemeral* runtime
 (`sms:received`, `sms:status` artisan commands) which fires Laravel events.
 
 The blocklist must be readable without PHP, so it lives in SharedPreferences.
+
+### sms.sqlite
+
+The plugin's own SQLite file, beside the host app's Laravel database (`app_storage/persisted_data/database/sms.sqlite`,
+so PHP finds it as `dirname(DB_DATABASE).'/sms.sqlite'`). **Kotlin is its only writer**; the host app's Laravel opens it
+read-only and writes through bridge functions. WAL, `busy_timeout` 5000, foreign keys on.
+
+- Numbered migrations in `SmsDb.MIGRATIONS` (never edit a shipped one). The resulting schema is
+  `database/sms-schema.sql`, written by the Kotlin tests, for the host app's PHP tests to build fixture databases.
+- Ids are ULIDs made on the phone (`Ulid.kt`), which sort by creation.
+- `change_log` (`seq`, `entity`, `entity_id`, `op`, `ts`) is written by **triggers** on `threads`, `messages` and
+  `attachments`, so no code path can forget it. `seq` never repeats and is the sync cursor.
 
 ## Install
 
@@ -65,7 +78,10 @@ PHP (`Blutrixx\NativephpSms\Facades\Sms`) and JS (`sms` from `resources/js/sms.t
 | `listSims()` | Active subscriptions |
 | `setBlocklist()` | Normalised (last 9 digits) numbers blocked natively |
 | `configure()` | Toggle the PHP hand-off |
-| `drainEvents()` | Read and clear the journal |
+| `openStore()` | Open (on first use create and migrate) `sms.sqlite`; returns its `path` and schema `version` |
+| `readEvents(reader?, after?, limit?)` | Journal events after an event id, or after what `reader` last acknowledged, oldest first, with `last_id`; nothing is removed |
+| `ackEvents(reader, upTo)` | Mark the journal as kept by `reader`; events every reader has kept are pruned after 14 days |
+| `drainEvents()` | The older call: what the `drain` reader has not had yet, acknowledged as it is returned |
 | `takePendingCompose()` | Recipient/body from an `sms:` / `smsto:` link |
 | `requestBatteryOptimizationExemption()` | Open the system exemption prompt |
 | `openSettings(page)` | `notifications` (the app's notification settings), `autostart` (as below) or `app` (the app's Android page) |
@@ -90,6 +106,10 @@ Declared in `nativephp.json`: `SMS_DELIVER` receiver (`BROADCAST_SMS`), `WAP_PUS
 
 ## Tests
 
-`composer install && vendor/bin/pest` runs structural checks (manifest ↔ Kotlin classes, role components, event
-constructor parameters). Behaviour can only be verified on a device or emulator — see the Phase 0 spike plan in the
-`sms-messenger` repo (`docs/specs/PHASE_0_SPIKE.md`).
+- `composer install && vendor/bin/pest`: structural checks (manifest ↔ Kotlin classes, role components, event
+  constructor parameters).
+- `cd android-tests && ./gradlew test`: the Kotlin on the JVM with Robolectric (real SQLite): migrations, `change_log`
+  triggers, ULIDs, the journal. It compiles all of `resources/android` against stand-ins for the NativePHP classes the
+  plugin imports (`android-tests/stubs`). After changing `SmsDb.MIGRATIONS`, run it once with `UPDATE_SCHEMA=1` to write
+  `database/sms-schema.sql`.
+- Receivers, sends and the role need a device or emulator: see `docs/specs/PHASE_0_SPIKE.md` in the `sms-messenger` repo.

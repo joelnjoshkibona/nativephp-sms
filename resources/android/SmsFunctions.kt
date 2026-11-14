@@ -42,6 +42,7 @@ object SmsFunctions {
 
     private fun intParam(parameters: Map<String, Any>, key: String): Int? = (parameters[key] as? Number)?.toInt()
     private fun longParam(parameters: Map<String, Any>, key: String): Long? = (parameters[key] as? Number)?.toLong()
+    private val READER = Regex("^[a-z0-9_-]{1,40}$")
 
     /** Role / permission / device state, in one call. The first thing the spike screen shows. */
     class GetStatus(private val context: Context) : BridgeFunction {
@@ -255,6 +256,46 @@ object SmsFunctions {
     class DrainEvents(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
             return BridgeResponse.success(mapOf("events_json" to EventJournal.drain(context).toString()))
+        }
+    }
+
+    /** Opens (and on first use creates and migrates) sms.sqlite, so a reader such as the app's Laravel can open it read-only. */
+    class OpenStore(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            return try {
+                val version = SmsDb.version(context)
+                BridgeResponse.success(mapOf("path" to SmsDb.file(context).absolutePath, "version" to version))
+            } catch (e: Exception) {
+                Log.e(TAG, "OpenStore failed", e)
+                BridgeResponse.error("STORE_FAILED", e.message ?: "sms.sqlite could not be opened")
+            }
+        }
+    }
+
+    /**
+     * Journal events after a cursor, oldest first: `after` (an event id), or the last id `reader` acknowledged.
+     * Nothing is removed by reading; the reader acknowledges what it kept with AckEvents.
+     */
+    class ReadEvents(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val reader = (parameters["reader"] as? String)?.takeIf { READER.matches(it) }
+            val after = longParam(parameters, "after") ?: reader?.let { EventJournal.acked(context, it) } ?: 0L
+            val events = EventJournal.read(context, after, intParam(parameters, "limit") ?: 200)
+            val last = if (events.length() > 0) events.getJSONObject(events.length() - 1).getLong("id") else after
+            return BridgeResponse.success(mapOf("events_json" to events.toString(), "last_id" to last))
+        }
+    }
+
+    /** Marks the journal as kept by `reader` up to `up_to`; events every reader has kept are pruned after 14 days. */
+    class AckEvents(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val reader = parameters["reader"] as? String
+            val upTo = longParam(parameters, "up_to")
+            if (reader == null || !READER.matches(reader) || upTo == null) {
+                return BridgeResponse.error("INVALID", "reader ([a-z0-9_-]{1,40}) and up_to are required")
+            }
+            EventJournal.ack(context, reader, upTo)
+            return BridgeResponse.success(mapOf("reader" to reader, "acked" to EventJournal.acked(context, reader)))
         }
     }
 

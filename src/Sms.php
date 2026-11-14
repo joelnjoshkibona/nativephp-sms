@@ -73,7 +73,30 @@ class Sms
         return $this->call('Sms.Configure', array_filter(['ephemeral' => $ephemeral, 'keep_alive' => $keepAlive], fn ($v) => $v !== null));
     }
 
-    /** Returns and clears the native event journal written by the headless receivers. */
+    /** Opens (and on first use creates) sms.sqlite: ['path' => ..., 'version' => schema version]. */
+    public function openStore(): array
+    {
+        return $this->call('Sms.OpenStore');
+    }
+
+    /**
+     * Journal events after a cursor, oldest first: ['events' => [...], 'last_id' => int]. Pass $after (an event id), or a
+     * $reader to start after what that reader last acknowledged. Nothing is removed; acknowledge with ackEvents().
+     */
+    public function readEvents(?string $reader = null, ?int $after = null, int $limit = 200): array
+    {
+        $result = $this->call('Sms.ReadEvents', array_filter(['reader' => $reader, 'after' => $after, 'limit' => $limit], fn ($v) => $v !== null));
+        $events = json_decode($result['events_json'] ?? '[]', true);
+
+        return ['events' => is_array($events) ? $events : [], 'last_id' => (int) ($result['last_id'] ?? $after ?? 0)];
+    }
+
+    public function ackEvents(string $reader, int $upTo): array
+    {
+        return $this->call('Sms.AckEvents', ['reader' => $reader, 'up_to' => $upTo]);
+    }
+
+    /** The journal events the "drain" reader has not had yet, acknowledged as they are returned (older apps; prefer readEvents). */
     public function drainEvents(): array
     {
         $result = $this->call('Sms.DrainEvents');

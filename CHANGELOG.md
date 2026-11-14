@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased: the app's own store (Phase 1, milestone 1.1)
+
+- `sms.sqlite`, the plugin's own SQLite file beside the host's Laravel database, with Kotlin its only writer: WAL,
+  numbered migrations, the plan's tables (threads, messages, attachments, contact_cache, blocklist, spam_senders,
+  scheduled, templates, change_log, paired_devices, settings, events). Its schema is `database/sms-schema.sql`.
+- Phone-made ULIDs, and `change_log` written by triggers on threads, messages and attachments.
+- The journal moves from `sms_events.jsonl` (deleted when drained, half dropped above 512 KB) to the `events` table,
+  read with `ReadEvents` and acknowledged per reader with `AckEvents`, so nothing is lost between a read and the app
+  keeping it. The old file's lines are copied in once. `DrainEvents` still works.
+- `OpenStore`, so a reader can open the file read-only once it exists.
+- `android-tests/`: the Kotlin tested on the JVM with Robolectric (`./gradlew test`), and a `phpunit.xml` so Pest runs.
+
 ## Unreleased — Phase 0 spike
 
 - Initial plugin: default-SMS role components (SMS_DELIVER, WAP_PUSH_DELIVER stub, SENDTO activity,

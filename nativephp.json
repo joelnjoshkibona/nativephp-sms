@@ -107,7 +107,31 @@
             "android_params": [
                 "context"
             ],
-            "description": "Return and clear the native event journal written by the headless receivers"
+            "description": "Return the journal events the \"drain\" reader has not had yet, and acknowledge them (kept for older apps; use ReadEvents and AckEvents)"
+        },
+        {
+            "name": "Sms.OpenStore",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.OpenStore",
+            "android_params": [
+                "context"
+            ],
+            "description": "Open (and on first use create and migrate) sms.sqlite; returns its path and schema version"
+        },
+        {
+            "name": "Sms.ReadEvents",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.ReadEvents",
+            "android_params": [
+                "context"
+            ],
+            "description": "Journal events after a cursor (after, or the last id a named reader acknowledged), oldest first; nothing is removed"
+        },
+        {
+            "name": "Sms.AckEvents",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.AckEvents",
+            "android_params": [
+                "context"
+            ],
+            "description": "Mark the journal as kept by a reader up to an event id; events every reader has kept are pruned after 14 days"
         },
         {
             "name": "Sms.TakePendingCompose",
