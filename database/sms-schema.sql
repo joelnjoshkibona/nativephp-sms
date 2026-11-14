@@ -1,4 +1,4 @@
--- sms.sqlite, schema version 3. Written by SmsDbTest from SmsDb.MIGRATIONS; do not edit.
+-- sms.sqlite, schema version 4. Written by SmsDbTest from SmsDb.MIGRATIONS; do not edit.
 
 CREATE TABLE attachments (
     id TEXT PRIMARY KEY,
@@ -62,7 +62,7 @@ CREATE TABLE messages (
     read INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
-);
+, sent_at INTEGER, delivered_at INTEGER, smsc_at INTEGER);
 
 CREATE VIRTUAL TABLE messages_fts USING fts4(content="messages", body, tokenize=unicode61);
 

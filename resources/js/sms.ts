@@ -197,8 +197,9 @@ export const sms = {
     send: (to: string, body: string, subscriptionId?: number, clientRef?: string) =>
         bridgeCall<SmsSendResult>('Sms.Send', { to, body, subscription_id: subscriptionId, client_ref: clientRef }),
 
+    /** The active SIMs, and the phone's own default SIM for texts (-1: it asks each time, or cannot say). */
     listSims: () =>
-        bridgeCall<{ sims: { slot: number; subscription_id: number; phone_number: string; operator: string }[] }>('Sms.ListSims'),
+        bridgeCall<{ sims: { slot: number; subscription_id: number; phone_number: string; operator: string }[]; default_subscription_id: number }>('Sms.ListSims'),
 
     setBlocklist: (numbers: string[]) => bridgeCall<{ size: number }>('Sms.SetBlocklist', { numbers }),
 

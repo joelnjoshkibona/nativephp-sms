@@ -111,6 +111,7 @@ object ReceivePipeline {
                     MessageStore.Incoming(
                         address = d.address, body = d.body, ts = d.receivedAt, subId = d.subId, simSlot = d.simSlot,
                         systemId = inserted.id, systemThreadId = inserted.threadId, folder = if (route == Route.Spam) "spam" else "inbox",
+                        smscAt = d.smscTs,
                     ),
                 )
             }

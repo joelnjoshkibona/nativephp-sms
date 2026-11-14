@@ -20,6 +20,8 @@ object MessageStore {
         val systemThreadId: Long?,
         val folder: String = "inbox",
         val read: Boolean = false,
+        /** When the other phone's network sent it (the SMSC timestamp); null when unknown. */
+        val smscAt: Long? = null,
     )
 
     data class Outgoing(
@@ -84,6 +86,7 @@ object MessageStore {
             if (m.subId != null && m.subId >= 0) put("sub_id", m.subId)
             if (m.simSlot != null) put("sim_slot", m.simSlot)
             put("read", if (m.read) 1 else 0)
+            if (m.smscAt != null && m.smscAt > 0) put("smsc_at", m.smscAt)
             put("created_at", now)
             put("updated_at", now)
         })
@@ -136,6 +139,7 @@ object MessageStore {
             put("body", body)
             put("ts", ts)
             put("status", status)
+            if (status == "sent" || status == "delivered") put("sent_at", ts)
             if (subId != null && subId >= 0) put("sub_id", subId)
             put("parts_total", 1)
             put("read", 1)
@@ -198,8 +202,14 @@ object MessageStore {
         db.update("messages", ContentValues().apply {
             put("parts_sent", sent.coerceAtMost(total)); put("parts_failed", failed.coerceAtMost(total)); put("parts_delivered", delivered.coerceAtMost(total))
             put("status", next)
-            if (next != status) put("updated_at", now)
+            if (next != status) {
+                put("updated_at", now)
+                // the moment it became sent, or delivered (a delivery with no sent callback before it is also when it went)
+                if (next == "sent") put("sent_at", now)
+                if (next == "delivered") put("delivered_at", now)
+            }
         }, "id = ?", arrayOf(messageId))
+        if (next == "delivered" && next != status) db.execSQL("UPDATE messages SET sent_at = COALESCE(sent_at, ?) WHERE id = ?", arrayOf<Any>(now, messageId))
         return if (next != status) StatusChange(messageId, clientRef, systemId, status, next, total) else null
     }
 }

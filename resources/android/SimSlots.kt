@@ -32,6 +32,13 @@ object SimSlots {
         }
     }
 
+    /** The phone's own default SIM for texts (Settings › SIMs), or -1 when it asks each time or cannot say. */
+    fun defaultSmsSubscription(): Int = try {
+        SubscriptionManager.getDefaultSmsSubscriptionId()
+    } catch (e: Throwable) {
+        -1
+    }
+
     fun slotForSubscriptionId(context: Context, subscriptionId: Int): Int? {
         if (subscriptionId < 0) return null
         return try {

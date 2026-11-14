@@ -29,6 +29,8 @@ object SmsImport {
         val read: Boolean,
         val status: Int,
         val subId: Int?,
+        /** When the other phone's network sent it (inbox rows; 0 when unknown). */
+        val dateSent: Long = 0,
     )
 
     /** The system store, as the import reads it. ContentResolver on a phone; tests give rows. */
@@ -168,7 +170,7 @@ object SmsImport {
         val saved = if (r.type == Telephony.Sms.MESSAGE_TYPE_INBOX) {
             MessageStore.insertIncoming(
                 db,
-                MessageStore.Incoming(r.address, r.body, r.date, r.subId, null, r.id, r.threadId, read = r.read),
+                MessageStore.Incoming(r.address, r.body, r.date, r.subId, null, r.id, r.threadId, read = r.read, smscAt = r.dateSent.takeIf { it > 0 }),
                 now,
             )
         } else {
@@ -186,7 +188,7 @@ object SmsImport {
     private class ResolverSource(private val context: Context) : Source {
         private val columns = arrayOf(
             Telephony.Sms._ID, Telephony.Sms.THREAD_ID, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE,
-            Telephony.Sms.TYPE, Telephony.Sms.READ, Telephony.Sms.STATUS, Telephony.Sms.SUBSCRIPTION_ID,
+            Telephony.Sms.TYPE, Telephony.Sms.READ, Telephony.Sms.STATUS, Telephony.Sms.SUBSCRIPTION_ID, Telephony.Sms.DATE_SENT,
         )
 
         override fun count(): Int = context.contentResolver.query(Telephony.Sms.CONTENT_URI, arrayOf(Telephony.Sms._ID), null, null, null)?.use { it.count } ?: 0
@@ -217,6 +219,7 @@ object SmsImport {
                             read = c.getInt(6) != 0,
                             status = if (c.isNull(7)) -1 else c.getInt(7),
                             subId = if (c.isNull(8)) null else c.getInt(8),
+                            dateSent = if (c.isNull(9)) 0 else c.getLong(9),
                         )
                     )
                 }

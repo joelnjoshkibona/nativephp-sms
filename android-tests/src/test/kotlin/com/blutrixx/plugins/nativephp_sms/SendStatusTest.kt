@@ -50,4 +50,23 @@ class SendStatusTest : DbTestBase() {
         assertEquals(a, b)
         assertEquals(1L, count("SELECT COUNT(*) FROM messages"))
     }
+
+    private fun times(id: String) = SmsDb.get(context).rawQuery("SELECT sent_at, delivered_at FROM messages WHERE id = ?", arrayOf(id)).use {
+        it.moveToFirst(); listOf(if (it.isNull(0)) null else it.getLong(0), if (it.isNull(1)) null else it.getLong(1))
+    }
+
+    @Test fun theMomentsItWasSentAndDeliveredAreKept() {
+        val id = queued(2)
+        SmsDb.write(context) { MessageStore.countPart(it, id, "sent", true, now = 1_000) }
+        assertEquals(listOf(null, null), times(id)) // one part of two: not sent yet
+        SmsDb.write(context) { MessageStore.countPart(it, id, "sent", true, now = 1_500) }
+        SmsDb.write(context) { MessageStore.countPart(it, id, "delivered", true, now = 4_000) }
+        SmsDb.write(context) { MessageStore.countPart(it, id, "delivered", true, now = 4_200) }
+        assertEquals(listOf(1_500L, 4_200L), times(id))
+    }
+
+    @Test fun aReceivedTextKeepsWhenTheOtherPhoneSentIt() {
+        val r = ReceivePipeline.receive(context, ReceivePipeline.Delivered("+255700000001", "hi", receivedAt = 9_000, smscTs = 8_400, subId = 1, simSlot = 0, parts = 1))
+        assertEquals(8_400L, count("SELECT smsc_at FROM messages WHERE id = ?", r.messageId!!))
+    }
 }

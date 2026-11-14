@@ -224,7 +224,7 @@ object SmsFunctions {
                     "operator" to (it.operator ?: "")
                 )
             }
-            return BridgeResponse.success(mapOf("sims" to sims))
+            return BridgeResponse.success(mapOf("sims" to sims, "default_subscription_id" to SimSlots.defaultSmsSubscription()))
         }
     }
 

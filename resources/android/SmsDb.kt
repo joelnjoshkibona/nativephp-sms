@@ -232,5 +232,12 @@ object SmsDb {
         """
         ALTER TABLE contact_cache ADD COLUMN number TEXT;
         """.trimIndent(),
+        // 4: when a message happened, for the message's details: sent_at and delivered_at for a sent one (its status moved
+        //    there), smsc_at for a received one (when the other phone's network sent it)
+        """
+        ALTER TABLE messages ADD COLUMN sent_at INTEGER;
+        ALTER TABLE messages ADD COLUMN delivered_at INTEGER;
+        ALTER TABLE messages ADD COLUMN smsc_at INTEGER;
+        """.trimIndent(),
     )
 }
