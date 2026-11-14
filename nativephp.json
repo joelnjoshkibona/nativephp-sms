@@ -158,6 +158,70 @@
             "description": "Debug builds only: seal the vault to a test public key (base64, 32 bytes) before vault setup exists"
         },
         {
+            "name": "Sms.SaveThread",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SaveThread",
+            "android_params": [
+                "context"
+            ],
+            "description": "Change a conversation in sms.sqlite: pinned, muted, folder (inbox, spam, archive), color, wallpaper, read"
+        },
+        {
+            "name": "Sms.DeleteThread",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.DeleteThread",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete a conversation and its messages (and from the system store while default)"
+        },
+        {
+            "name": "Sms.DeleteMessage",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.DeleteMessage",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete one message (and from the system store while default)"
+        },
+        {
+            "name": "Sms.SaveTemplate",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SaveTemplate",
+            "android_params": [
+                "context"
+            ],
+            "description": "Create or edit a saved reply (title, body, shortcut)"
+        },
+        {
+            "name": "Sms.DeleteTemplate",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.DeleteTemplate",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete a saved reply"
+        },
+        {
+            "name": "Sms.SaveScheduled",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SaveScheduled",
+            "android_params": [
+                "context"
+            ],
+            "description": "Create, edit or cancel a text to send later (thread_id or to, body, send_at)"
+        },
+        {
+            "name": "Sms.DeleteScheduled",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.DeleteScheduled",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete a scheduled text"
+        },
+        {
+            "name": "Sms.SetSetting",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SetSetting",
+            "android_params": [
+                "context"
+            ],
+            "description": "Set or remove one of the app's settings (keys under app.)"
+        },
+        {
             "name": "Sms.TakePendingCompose",
             "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.TakePendingCompose",
             "android_params": [

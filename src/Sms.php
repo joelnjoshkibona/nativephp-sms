@@ -139,6 +139,54 @@ class Sms
         return $this->call('Sms.OpenAutostartSettings');
     }
 
+    // Writes to sms.sqlite, which the host app opens read-only. Each answers the written row's id, or
+    // ['status' => 'error', 'code' => INVALID|NOT_FOUND|STORE_FAILED, 'message' => a reason the screen can show].
+
+    /** $changes: any of pinned, muted (bool), folder (inbox|spam|archive), color, wallpaper (null clears), read (true). */
+    public function saveThread(string $id, array $changes): array
+    {
+        return $this->call('Sms.SaveThread', ['id' => $id] + array_intersect_key($changes, array_flip(['pinned', 'muted', 'folder', 'color', 'wallpaper', 'read'])));
+    }
+
+    public function deleteThread(string $id): array
+    {
+        return $this->call('Sms.DeleteThread', ['id' => $id]);
+    }
+
+    public function deleteMessage(string $id): array
+    {
+        return $this->call('Sms.DeleteMessage', ['id' => $id]);
+    }
+
+    public function saveTemplate(?string $id, string $title, string $body, ?string $shortcut = null): array
+    {
+        return $this->call('Sms.SaveTemplate', array_filter(['id' => $id, 'title' => $title, 'body' => $body, 'shortcut' => $shortcut], fn ($v) => $v !== null));
+    }
+
+    public function deleteTemplate(string $id): array
+    {
+        return $this->call('Sms.DeleteTemplate', ['id' => $id]);
+    }
+
+    /** $fields: thread_id or to, body, send_at (ms), subscription_id, status (waiting|cancelled). */
+    public function saveScheduled(?string $id, array $fields): array
+    {
+        $fields = array_intersect_key($fields, array_flip(['thread_id', 'to', 'body', 'send_at', 'subscription_id', 'status']));
+
+        return $this->call('Sms.SaveScheduled', array_filter(['id' => $id] + $fields, fn ($v) => $v !== null));
+    }
+
+    public function deleteScheduled(string $id): array
+    {
+        return $this->call('Sms.DeleteScheduled', ['id' => $id]);
+    }
+
+    /** A key under app.; null removes it. */
+    public function setSetting(string $key, ?string $value): array
+    {
+        return $this->call('Sms.SetSetting', ['key' => $key, 'value' => $value]);
+    }
+
     protected function call(string $function, array $params = []): array
     {
         if (! function_exists('nativephp_call')) {

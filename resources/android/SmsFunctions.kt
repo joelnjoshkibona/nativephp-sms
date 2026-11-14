@@ -266,6 +266,78 @@ object SmsFunctions {
         }
     }
 
+    // -- writes for the app's Laravel, which opens sms.sqlite read-only (StoreWrites) --------------------------------------
+
+    private fun str(parameters: Map<String, Any>, key: String): String? = (parameters[key] as? String)?.takeIf { it.isNotEmpty() }
+
+    /** INVALID (with a message the screen can show), NOT_FOUND or STORE_FAILED; never an exception across the bridge. */
+    private inline fun write(block: () -> Map<String, Any>): Map<String, Any> = try {
+        BridgeResponse.success(block())
+    } catch (e: StoreWrites.NotFound) {
+        BridgeResponse.error("NOT_FOUND", e.message ?: "Not found")
+    } catch (e: StoreWrites.Invalid) {
+        BridgeResponse.error("INVALID", e.message ?: "Not valid")
+    } catch (e: Exception) {
+        Log.e(TAG, "store write failed", e)
+        BridgeResponse.error("STORE_FAILED", e.message ?: e.javaClass.simpleName)
+    }
+
+    private fun idParam(parameters: Map<String, Any>): String =
+        str(parameters, "id") ?: throw StoreWrites.Invalid("id is required")
+
+    /** id, and any of pinned, muted, folder, color, wallpaper, read. */
+    class SaveThread(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = write {
+            val id = idParam(parameters)
+            StoreWrites.saveThread(context, id, parameters.filterKeys { it in setOf("pinned", "muted", "folder", "color", "wallpaper", "read") })
+            mapOf("id" to id)
+        }
+    }
+
+    class DeleteThread(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = write { idParam(parameters).also { StoreWrites.deleteThread(context, it) }.let { mapOf("id" to it) } }
+    }
+
+    class DeleteMessage(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = write { idParam(parameters).also { StoreWrites.deleteMessage(context, it) }.let { mapOf("id" to it) } }
+    }
+
+    /** id (omit to create), title, body, shortcut. */
+    class SaveTemplate(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = write {
+            mapOf("id" to StoreWrites.saveTemplate(context, str(parameters, "id"), parameters["title"] as? String, parameters["body"] as? String, parameters["shortcut"] as? String))
+        }
+    }
+
+    class DeleteTemplate(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = write { idParam(parameters).also { StoreWrites.deleteTemplate(context, it) }.let { mapOf("id" to it) } }
+    }
+
+    /** id (omit to create), thread_id or to, body, send_at (ms), subscription_id, status (waiting or cancelled). */
+    class SaveScheduled(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = write {
+            mapOf(
+                "id" to StoreWrites.saveScheduled(
+                    context, str(parameters, "id"), str(parameters, "thread_id"), str(parameters, "to"), parameters["body"] as? String,
+                    longParam(parameters, "send_at"), intParam(parameters, "subscription_id"), str(parameters, "status"),
+                )
+            )
+        }
+    }
+
+    class DeleteScheduled(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = write { idParam(parameters).also { StoreWrites.deleteScheduled(context, it) }.let { mapOf("id" to it) } }
+    }
+
+    /** key (app.*), value (a string; null or missing removes it). */
+    class SetSetting(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = write {
+            val key = str(parameters, "key") ?: throw StoreWrites.Invalid("key is required")
+            StoreWrites.setSetting(context, key, parameters["value"]?.takeIf { it != org.json.JSONObject.NULL }?.toString())
+            mapOf("key" to key)
+        }
+    }
+
     /** Starts (or resumes) the first-run import of the system store into sms.sqlite; once done, copies only what is new. */
     class StartImport(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {

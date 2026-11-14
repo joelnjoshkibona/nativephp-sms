@@ -60,7 +60,8 @@ catch-up whenever the app is the default SMS app, which picks up texts another a
 
 The plugin's own SQLite file, beside the host app's Laravel database (`app_storage/persisted_data/database/sms.sqlite`,
 so PHP finds it as `dirname(DB_DATABASE).'/sms.sqlite'`). **Kotlin is its only writer**; the host app's Laravel opens it
-read-only and writes through bridge functions. WAL, `busy_timeout` 5000, foreign keys on.
+read-only and writes through the bridge functions below (`StoreWrites`), which validate and answer `INVALID` with a
+reason, `NOT_FOUND` or `STORE_FAILED`. WAL, `busy_timeout` 5000, foreign keys on.
 
 - Numbered migrations in `SmsDb.MIGRATIONS` (never edit a shipped one). The resulting schema is
   `database/sms-schema.sql`, written by the Kotlin tests, for the host app's PHP tests to build fixture databases.
@@ -116,6 +117,10 @@ PHP (`Blutrixx\NativephpSms\Facades\Sms`) and JS (`sms` from `resources/js/sms.t
 | `listSims()` | Active subscriptions |
 | `setBlocklist()` | The blocked numbers (normalised, encrypted in `sms.sqlite`); other rules are kept |
 | `configure()` | Toggle the PHP hand-off |
+| `saveThread()` / `deleteThread()` / `deleteMessage()` | A conversation's pin, mute, folder, colour, wallpaper and read state; deletes (also from the system store while default) |
+| `saveTemplate()` / `deleteTemplate()` | Saved replies (title, words, a unique shortcut) |
+| `saveScheduled()` / `deleteScheduled()` | Texts to send later, to a conversation or a number; only a waiting one changes (sending them when due is the app's next step) |
+| `setSetting(key, value)` | The app's own settings in `sms.sqlite` (keys under `app.`) |
 | `startImport()` / `importStatus()` | The first-run import and its progress (`state`: none, running, interrupted, done; `done`, `total`, `oldest_ts`) |
 | `vaultSetTestKey(publicKey)` (JS) | Debug builds only: seal to a test key before vault setup exists |
 | `openStore()` | Open (on first use create and migrate) `sms.sqlite`; returns its `path` and schema `version` |

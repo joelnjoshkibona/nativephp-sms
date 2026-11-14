@@ -7,7 +7,7 @@ interface BridgeFunction {
 }
 
 object BridgeResponse {
-    fun success(data: Map<String, Any> = emptyMap()): Map<String, Any> = mapOf("status" to "success", "data" to data)
+    fun success(data: Map<String, Any> = emptyMap()): Map<String, Any> = data
     fun error(code: String, message: String, data: Map<String, Any> = emptyMap()): Map<String, Any> =
         mapOf("status" to "error", "code" to code, "message" to message, "data" to data)
 }
