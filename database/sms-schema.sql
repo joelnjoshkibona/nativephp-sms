@@ -1,4 +1,4 @@
--- sms.sqlite, schema version 2. Written by SmsDbTest from SmsDb.MIGRATIONS; do not edit.
+-- sms.sqlite, schema version 3. Written by SmsDbTest from SmsDb.MIGRATIONS; do not edit.
 
 CREATE TABLE attachments (
     id TEXT PRIMARY KEY,
@@ -33,7 +33,7 @@ CREATE TABLE contact_cache (
     color_override TEXT,
     avatar_ref TEXT,
     updated_at INTEGER NOT NULL
-);
+, number TEXT);
 
 CREATE TABLE events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

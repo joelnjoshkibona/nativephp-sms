@@ -35,6 +35,7 @@ object ContactSync {
             byKey.forEach { (key, c) ->
                 db.insert("contact_cache", null, ContentValues().apply {
                     put("number_e164", key)
+                    put("number", c.number.trim())
                     put("name", c.name.trim())
                     if (c.photo != null) put("avatar_ref", c.photo)
                     put("updated_at", now)

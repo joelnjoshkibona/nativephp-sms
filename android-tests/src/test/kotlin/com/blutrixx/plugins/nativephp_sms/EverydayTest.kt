@@ -35,6 +35,7 @@ class EverydayTest : DbTestBase() {
         ContactSync.source = { listOf(ContactSync.Contact("+255 712 000 111", "Neema Kweka", null), ContactSync.Contact("0712000111", "Neema (old)", null), ContactSync.Contact("", "No number", null)) }
         assertEquals(1, ContactSync.sync(context))
         assertEquals("Neema Kweka", ContactSync.nameFor(context, "0712000111"))
+        assertEquals("+255 712 000 111", SmsDb.get(context).rawQuery("SELECT number FROM contact_cache", null).use { it.moveToFirst(); it.getString(0) })
         ContactSync.source = { emptyList() }
         ContactSync.sync(context)
         assertNull(ContactSync.nameFor(context, "+255712000111"))

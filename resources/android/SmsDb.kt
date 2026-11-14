@@ -227,5 +227,10 @@ object SmsDb {
         CREATE TRIGGER messages_fts_after_update AFTER UPDATE OF body ON messages BEGIN INSERT INTO messages_fts (docid, body) VALUES (NEW.rowid, NEW.body); END;
         INSERT INTO messages_fts (messages_fts) VALUES ('rebuild');
         """.trimIndent(),
+        // 3: a contact's number as the phone stores it (number_e164 holds its comparison key), so a text to a contact
+        //    goes to the whole number
+        """
+        ALTER TABLE contact_cache ADD COLUMN number TEXT;
+        """.trimIndent(),
     )
 }
