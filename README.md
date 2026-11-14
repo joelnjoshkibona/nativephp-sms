@@ -57,7 +57,7 @@ PHP (`Blutrixx\NativephpSms\Facades\Sms`) and JS (`sms` from `resources/js/sms.t
 
 | Method | Purpose |
 |---|---|
-| `status()` | API level, default-app state, permissions, role availability, ephemeral and keep-alive flags, `transsion` (Infinix, Tecno, itel), `booted_at` and the last boot receiver run (`last_boot_at`, `_reason`, `_keep_alive`), and its last run for a phone start (`last_boot_completed_at`, kept apart so an app update does not erase it): a `last_boot_completed_at` after `booted_at` proves the app starts by itself |
+| `status()` | API level, default-app state, permissions, role availability, ephemeral and keep-alive flags, `transsion` (Infinix, Tecno, itel), `booted_at` and the last boot receiver run (`last_boot_at`, `_reason`, `_keep_alive`), and its last run for a phone start (`last_boot_completed_at`, kept apart so an app update does not erase it): a `last_boot_completed_at` after `booted_at` proves the app starts by itself ; `default_lost_at`: when the boot receiver (a restart or an app update) found the app no longer the default SMS app it had been, and posted "<app> is no longer your SMS app" (cleared, with the notification, once it is the default again) |
 | `requestDefault()` | Ask for the SMS role; result arrives as the `DefaultSmsResult` event (JS wrapper correlates by id) |
 | `listThreads()` / `listMessages()` / `countMessages()` | Read the system store |
 | `markRead()` | Mark a thread read |

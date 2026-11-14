@@ -20,6 +20,8 @@ object SmsPrefs {
     private const val KEY_BOOT_REASON = "last_boot_reason"
     private const val KEY_BOOT_KEEP_ALIVE = "last_boot_keep_alive"
     private const val KEY_BOOT_COMPLETED_AT = "last_boot_completed_at"
+    private const val KEY_DEFAULT_SEEN = "default_seen"
+    private const val KEY_DEFAULT_LOST_AT = "default_lost_at"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -80,6 +82,19 @@ object SmsPrefs {
     }
 
     fun lastBootCompletedAt(context: Context): Long = prefs(context).getLong(KEY_BOOT_COMPLETED_AT, 0L)
+
+    /**
+     * Whether this app has been the default SMS app, and when it was found to be no longer (0: it is, or never was). Some
+     * makers' software (Transsion's, seen on an Infinix) hands the SMS role back to another app when this one is updated.
+     */
+    fun wasDefault(context: Context): Boolean = prefs(context).getBoolean(KEY_DEFAULT_SEEN, false)
+    fun defaultLostAt(context: Context): Long = prefs(context).getLong(KEY_DEFAULT_LOST_AT, 0L)
+    fun markDefault(context: Context) {
+        prefs(context).edit().putBoolean(KEY_DEFAULT_SEEN, true).putLong(KEY_DEFAULT_LOST_AT, 0L).apply()
+    }
+    fun setDefaultLost(context: Context, at: Long) {
+        prefs(context).edit().putLong(KEY_DEFAULT_LOST_AT, at).apply()
+    }
 
     fun lastBootAt(context: Context): Long = prefs(context).getLong(KEY_BOOT_AT, 0L)
     fun lastBootReason(context: Context): String = prefs(context).getString(KEY_BOOT_REASON, "") ?: ""

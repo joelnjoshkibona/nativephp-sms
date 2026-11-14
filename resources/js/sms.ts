@@ -36,6 +36,8 @@ export interface SmsStatus {
     last_boot_keep_alive: string
     /** when the boot receiver last ran for a phone start (BOOT_COMPLETED; 0: never): after `booted_at`, the app starts by itself */
     last_boot_completed_at: number
+    /** when the app was found to have lost the SMS role it once held (0: it holds it, or never did); the plugin also notifies */
+    default_lost_at: number
 }
 
 export interface SmsThread {

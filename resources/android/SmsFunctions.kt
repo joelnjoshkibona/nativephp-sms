@@ -54,6 +54,10 @@ object SmsFunctions {
                 roleAvailable = roles?.isRoleAvailable(RoleManager.ROLE_SMS) == true
                 roleHeld = roles?.isRoleHeld(RoleManager.ROLE_SMS) == true
             }
+            if (SmsStore.isDefaultSmsApp(context)) {
+                SmsPrefs.markDefault(context)
+                SmsNotifier.cancelDefaultLost(context)
+            }
             val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
             return BridgeResponse.success(
                 mapOf(
@@ -80,7 +84,9 @@ object SmsFunctions {
                     "last_boot_at" to SmsPrefs.lastBootAt(context),
                     "last_boot_reason" to SmsPrefs.lastBootReason(context),
                     "last_boot_keep_alive" to SmsPrefs.lastBootKeepAlive(context),
-                    "last_boot_completed_at" to SmsPrefs.lastBootCompletedAt(context)
+                    "last_boot_completed_at" to SmsPrefs.lastBootCompletedAt(context),
+                    // when the app was found to have lost the SMS role it once held (0: it has it, or never had it)
+                    "default_lost_at" to SmsPrefs.defaultLostAt(context)
                 )
             )
         }

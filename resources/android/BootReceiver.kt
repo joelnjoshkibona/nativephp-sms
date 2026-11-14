@@ -7,7 +7,8 @@ import org.json.JSONObject
 
 /**
  * Restarts the keep-alive service after a reboot or an app update, when the setting is on, and writes a `boot` journal
- * line either way. On Transsion phones this receiver never runs while the app is "Prohibited" in Phone Master's
+ * line either way. When the app was the default SMS app and no longer is (some makers hand the role to another app on an
+ * update), it posts a notification that leads back to the fix. On Transsion phones this receiver never runs while the app is "Prohibited" in Phone Master's
  * auto-start management, so a missing line after a reboot is itself the sign.
  */
 class BootReceiver : BroadcastReceiver() {
@@ -19,6 +20,15 @@ class BootReceiver : BroadcastReceiver() {
         }
         val keepAlive = KeepAliveService.startIfEnabled(context)
         SmsPrefs.setLastBoot(context, reason, keepAlive)
-        EventJournal.append(context, "boot", JSONObject().put("reason", reason).put("keep_alive", keepAlive))
+        val isDefault = SmsStore.isDefaultSmsApp(context)
+        EventJournal.append(context, "boot", JSONObject().put("reason", reason).put("keep_alive", keepAlive).put("is_default", isDefault))
+        if (isDefault) {
+            SmsPrefs.markDefault(context)
+        } else if (SmsPrefs.wasDefault(context)) {
+            // it was the default SMS app and is not any more: texts now go to another app, so say so at once
+            SmsPrefs.setDefaultLost(context, System.currentTimeMillis())
+            val notified = SmsNotifier.notifyDefaultLost(context)
+            EventJournal.append(context, "default_sms_lost", JSONObject().put("reason", reason).put("notified", notified))
+        }
     }
 }
