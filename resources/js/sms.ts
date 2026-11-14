@@ -34,6 +34,8 @@ export interface SmsStatus {
     last_boot_at: number
     last_boot_reason: '' | 'boot_completed' | 'package_replaced'
     last_boot_keep_alive: string
+    /** when the boot receiver last ran for a phone start (BOOT_COMPLETED; 0: never): after `booted_at`, the app starts by itself */
+    last_boot_completed_at: number
 }
 
 export interface SmsThread {

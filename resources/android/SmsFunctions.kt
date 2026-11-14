@@ -79,7 +79,8 @@ object SmsFunctions {
                     "booted_at" to (System.currentTimeMillis() - android.os.SystemClock.elapsedRealtime()),
                     "last_boot_at" to SmsPrefs.lastBootAt(context),
                     "last_boot_reason" to SmsPrefs.lastBootReason(context),
-                    "last_boot_keep_alive" to SmsPrefs.lastBootKeepAlive(context)
+                    "last_boot_keep_alive" to SmsPrefs.lastBootKeepAlive(context),
+                    "last_boot_completed_at" to SmsPrefs.lastBootCompletedAt(context)
                 )
             )
         }

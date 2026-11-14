@@ -19,6 +19,7 @@ object SmsPrefs {
     private const val KEY_BOOT_AT = "last_boot_at"
     private const val KEY_BOOT_REASON = "last_boot_reason"
     private const val KEY_BOOT_KEEP_ALIVE = "last_boot_keep_alive"
+    private const val KEY_BOOT_COMPLETED_AT = "last_boot_completed_at"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -67,9 +68,18 @@ object SmsPrefs {
         prefs(context).getBoolean(KEY_KEEP_ALIVE, false)
 
     /** The last time the boot receiver ran (epoch ms), why, and what keep-alive did: proof that the app starts by itself. */
+    /**
+     * The boot receiver's last run. A run for BOOT_COMPLETED is also kept on its own (lastBootCompletedAt): it is the proof
+     * that Android lets the app start by itself, and a later run for an app update must not erase it.
+     */
     fun setLastBoot(context: Context, reason: String, keepAlive: String) {
-        prefs(context).edit().putLong(KEY_BOOT_AT, System.currentTimeMillis()).putString(KEY_BOOT_REASON, reason).putString(KEY_BOOT_KEEP_ALIVE, keepAlive).apply()
+        val now = System.currentTimeMillis()
+        val edit = prefs(context).edit().putLong(KEY_BOOT_AT, now).putString(KEY_BOOT_REASON, reason).putString(KEY_BOOT_KEEP_ALIVE, keepAlive)
+        if (reason == "boot_completed") edit.putLong(KEY_BOOT_COMPLETED_AT, now)
+        edit.apply()
     }
+
+    fun lastBootCompletedAt(context: Context): Long = prefs(context).getLong(KEY_BOOT_COMPLETED_AT, 0L)
 
     fun lastBootAt(context: Context): Long = prefs(context).getLong(KEY_BOOT_AT, 0L)
     fun lastBootReason(context: Context): String = prefs(context).getString(KEY_BOOT_REASON, "") ?: ""
