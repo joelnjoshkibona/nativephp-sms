@@ -150,7 +150,7 @@ object VaultStore {
         passKey.fill(0)
     }
 
-    /** Erases every vault message and the keys. The rules stay (blocked texts then wait in quarantine). Needs it open. */
+    /** Erases every vault message and the keys (VaultOps.wipe also erases the rules). Needs it open. */
     @Synchronized fun wipe(context: Context) {
         secretKey()
         val db = db(context)
@@ -258,6 +258,10 @@ object VaultStore {
             put("parts_total", parts.coerceAtLeast(1))
         })
         return true
+    }
+
+    internal fun dropQuarantine(context: Context) {
+        File(context.applicationContext.filesDir, QUARANTINE_FILE).delete()
     }
 
     private fun quarantine(context: Context, record: JSONObject) {

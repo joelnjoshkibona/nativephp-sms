@@ -104,7 +104,10 @@ class VaultTest : DbTestBase() {
         val next = receive("+255711000432", "answer your phone")
         assertEquals(ReceivePipeline.Route.Blocked, next.route)
         assertEquals(listOf("blocked", 2), VaultOps.conversations(context).single().let { listOf(it.tag, it.count) })
-        assertThrows(VaultOps.NoVault::class.java) { VaultStore.wipe(context); VaultOps.block(context, "+255700000002", null) }
+        VaultOps.wipe(context)
+        assertEquals(listOf(0, false), listOf(Blocklist.rules(context).size, VaultStore.exists(context)))
+        assertEquals(ReceivePipeline.Route.Normal, receive("+255711000432", "after the wipe").route)
+        assertThrows(VaultOps.NoVault::class.java) { VaultOps.block(context, "+255700000002", null) }
     }
 
     @Test fun keepPrivateThenMoveOut() {

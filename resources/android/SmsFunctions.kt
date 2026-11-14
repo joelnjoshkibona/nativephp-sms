@@ -365,7 +365,7 @@ object SmsFunctions {
     }
 
     class VaultWipe(private val context: Context) : BridgeFunction {
-        override fun execute(parameters: Map<String, Any>) = vault { VaultStore.wipe(context); mapOf("wiped" to true) }
+        override fun execute(parameters: Map<String, Any>) = vault { VaultOps.wipe(context); mapOf("wiped" to true) }
     }
 
     /** The open vault's conversations, newest first. */

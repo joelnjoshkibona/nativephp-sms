@@ -187,6 +187,17 @@ object VaultOps {
         return ids.size
     }
 
+    /**
+     * Wipe the vault: every message, the keys, and the rules (blocked and private numbers). Without a key a blocked text
+     * could only wait unsealed in quarantine, behind rules no screen could show, so they go too. Needs it open.
+     */
+    fun wipe(context: Context) {
+        VaultStore.secretKey()
+        SmsDb.write(context) { it.delete("blocklist", null, null) }
+        VaultStore.dropQuarantine(context)
+        VaultStore.wipe(context)
+    }
+
     // -- rules (inside the open vault) ------------------------------------------------------------------------------------
 
     fun rules(context: Context): List<Blocklist.Rule> {
