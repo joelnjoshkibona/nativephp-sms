@@ -69,6 +69,13 @@ class SmsImportTest : DbTestBase() {
         assertEquals("done", SmsImport.status(context)["state"])
     }
 
+    @Test fun startingAnswersWithTheTotalAlreadyCounted() {
+        assertEquals(true, SmsImport.start(context))
+        assertEquals(1203, SmsImport.status(context)["total"])
+        repeat(100) { if (SmsImport.status(context)["running"] == true) Thread.sleep(20) }
+        assertEquals("done", SmsImport.status(context)["state"])
+    }
+
     @Test fun aCatchUpCopiesOnlyWhatIsNew() {
         SmsImport.run(context)
         source.rows += row(1300, "+255700000009")

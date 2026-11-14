@@ -73,6 +73,12 @@ object SmsImport {
     fun start(context: Context): Boolean {
         val app = context.applicationContext
         if (!running.compareAndSet(false, true)) return false
+        try {
+            prepare(app, sourceFor(app)) // counted before answering, so the caller's status already says how many
+        } catch (e: Throwable) {
+            running.set(false)
+            throw e
+        }
         Thread({
             try {
                 if (SmsDb.setting(app, Keys.STATE) == "done") catchUp(app) else run(app)
@@ -91,15 +97,7 @@ object SmsImport {
     fun run(context: Context) {
         val source = sourceFor(context)
         val began = System.currentTimeMillis()
-        if (SmsDb.setting(context, Keys.STATE) == null) {
-            SmsDb.write(context) { db ->
-                SmsDb.setSetting(db, Keys.STATE, "running")
-                SmsDb.setSetting(db, Keys.TOTAL, source.count().toString())
-                SmsDb.setSetting(db, Keys.DONE, "0")
-                SmsDb.setSetting(db, Keys.STARTED_AT, began.toString())
-            }
-            EventJournal.append(context, "import_started", JSONObject().put("total", SmsDb.setting(context, Keys.TOTAL)))
-        }
+        prepare(context, source)
         SmsDb.setSetting(context, Keys.ERROR, null)
         var date = SmsDb.setting(context, Keys.CURSOR_DATE)?.toLongOrNull() ?: Long.MAX_VALUE
         var id = SmsDb.setting(context, Keys.CURSOR_ID)?.toLongOrNull() ?: Long.MAX_VALUE
@@ -128,6 +126,19 @@ object SmsImport {
             context, "import_done",
             JSONObject().put("done", SmsDb.setting(context, Keys.DONE)).put("ms", System.currentTimeMillis() - began)
         )
+    }
+
+    /** The first time only: how many rows there are, and that an import is under way. */
+    private fun prepare(context: Context, source: Source) {
+        if (SmsDb.setting(context, Keys.STATE) != null) return
+        val total = source.count()
+        SmsDb.write(context) { db ->
+            SmsDb.setSetting(db, Keys.STATE, "running")
+            SmsDb.setSetting(db, Keys.TOTAL, total.toString())
+            SmsDb.setSetting(db, Keys.DONE, "0")
+            SmsDb.setSetting(db, Keys.STARTED_AT, System.currentTimeMillis().toString())
+        }
+        EventJournal.append(context, "import_started", JSONObject().put("total", total))
     }
 
     /** Rows the system store gained since the newest one seen. Returns how many were new here. */
