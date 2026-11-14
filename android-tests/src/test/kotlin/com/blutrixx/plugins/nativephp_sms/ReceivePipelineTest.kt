@@ -160,7 +160,7 @@ class ReceivePipelineTest : DbTestBase() {
         val db = android.database.sqlite.SQLiteDatabase.openDatabase(VaultStore.file(context).path, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY)
         val sealed = db.rawQuery("SELECT ciphertext FROM vault_messages", null).use { c -> c.moveToFirst(); c.getBlob(0) }
         db.close()
-        val record = JSONObject(TestSealer.open(sealed))
+        val record = JSONObject(TestCrypto.peek(sealed))
         assertEquals(listOf(body, why, number), listOf(record.getString("body"), record.getString("why"), record.getString("from")))
     }
 

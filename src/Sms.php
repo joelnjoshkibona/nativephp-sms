@@ -215,6 +215,14 @@ class Sms
         return $this->call('Sms.TakePendingOpen');
     }
 
+    /** The private numbers' comparison keys (the last 9 digits): contact suggestions leave them out. */
+    public function privateKeys(): array
+    {
+        $result = $this->call('Sms.PrivateKeys');
+
+        return ($result['status'] ?? null) === 'error' ? [] : array_values($result['keys'] ?? []);
+    }
+
     protected function call(string $function, array $params = []): array
     {
         if (! function_exists('nativephp_call')) {

@@ -303,6 +303,202 @@ object SmsFunctions {
             BridgeResponse.success(mapOf("thread" to (SmsPrefs.takePendingOpen(context) ?: "")))
     }
 
+    // -- the vault (1.3): setup, unlock, what is in it, hiding, blocking, private numbers, spam -----------------------------
+
+    /** LOCKED, NO_VAULT, EXISTS, INVALID, NOT_FOUND or VAULT_FAILED; never an exception across the bridge. */
+    private inline fun vault(block: () -> Map<String, Any>): Map<String, Any> = try {
+        BridgeResponse.success(block())
+    } catch (e: VaultStore.VaultLocked) {
+        BridgeResponse.error("LOCKED", "The vault is locked.")
+    } catch (e: VaultOps.NoVault) {
+        BridgeResponse.error("NO_VAULT", "Set up the vault first.")
+    } catch (e: VaultStore.VaultExists) {
+        BridgeResponse.error("EXISTS", "A vault is already set up.")
+    } catch (e: StoreWrites.Invalid) {
+        BridgeResponse.error("INVALID", e.message ?: "Not valid")
+    } catch (e: StoreWrites.NotFound) {
+        BridgeResponse.error("NOT_FOUND", e.message ?: "Not found")
+    } catch (e: Exception) {
+        Log.e(TAG, "vault failed", e)
+        BridgeResponse.error("VAULT_FAILED", e.javaClass.simpleName)
+    }
+
+    private fun ids(parameters: Map<String, Any>, key: String = "ids"): List<String> = when (val raw = parameters[key]) {
+        is org.json.JSONArray -> (0 until raw.length()).map { raw.optString(it) }.filter { it.isNotEmpty() }
+        is List<*> -> raw.mapNotNull { it?.toString() }
+        else -> emptyList()
+    }
+
+    private fun text(parameters: Map<String, Any>, key: String): String =
+        (parameters[key] as? String)?.takeIf { it.isNotEmpty() } ?: throw StoreWrites.Invalid("$key is required")
+
+    /** {exists, open}: a vault set up by the person, and whether it is open now. */
+    class VaultState(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("exists" to VaultStore.exists(context), "open" to VaultStore.isOpen()) }
+    }
+
+    /** Makes the vault with a passphrase; answers the recovery key, the only time it is shown. Leaves it open. */
+    class VaultSetup(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            val pass = text(parameters, "passphrase")
+            if (pass.length < 4) throw StoreWrites.Invalid("A passphrase needs at least 4 characters.")
+            mapOf("recovery_key" to VaultStore.setup(context, pass))
+        }
+    }
+
+    /** Tries the passphrase or the recovery key, always at the same cost. {open}. */
+    class VaultUnlock(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("open" to VaultStore.unlock(context, (parameters["typed"] as? String)?.trim() ?: "")) }
+    }
+
+    class VaultLock(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { VaultStore.lock(); mapOf("open" to false) }
+    }
+
+    class VaultChangePassphrase(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            val pass = text(parameters, "passphrase")
+            if (pass.length < 4) throw StoreWrites.Invalid("A passphrase needs at least 4 characters.")
+            VaultStore.changePassphrase(context, pass)
+            mapOf("changed" to true)
+        }
+    }
+
+    class VaultWipe(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { VaultStore.wipe(context); mapOf("wiped" to true) }
+    }
+
+    /** The open vault's conversations, newest first. */
+    class VaultConversations(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            val list = VaultOps.conversations(context).map {
+                org.json.JSONObject().put("address", it.address).put("name", it.name ?: org.json.JSONObject.NULL).put("tag", it.tag)
+                    .put("notify", it.notify ?: org.json.JSONObject.NULL).put("last_at", it.lastAt).put("last_body", it.lastBody)
+                    .put("last_out", it.lastOut).put("count", it.count)
+            }
+            mapOf("conversations_json" to org.json.JSONArray(list).toString(), "rules" to Blocklist.size(context))
+        }
+    }
+
+    class VaultMessages(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            mapOf("messages_json" to org.json.JSONArray(VaultOps.messages(context, text(parameters, "address"))).toString())
+        }
+    }
+
+    class HideMessages(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("hidden" to VaultOps.hideMessages(context, ids(parameters))) }
+    }
+
+    class HideThread(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("hidden" to VaultOps.hideThread(context, text(parameters, "id"))) }
+    }
+
+    class VaultRestore(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("restored" to VaultOps.restore(context, ids(parameters))) }
+    }
+
+    class VaultDelete(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { VaultStore.delete(context, ids(parameters)); mapOf("deleted" to ids(parameters).size) }
+    }
+
+    class VaultDeleteConversation(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("deleted" to VaultOps.deleteConversation(context, text(parameters, "address"))) }
+    }
+
+    /** A reply written inside the vault: sent by SMS and kept only there. */
+    class VaultSend(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            VaultStore.secretKey()
+            val ref = (parameters["client_ref"] as? String) ?: java.util.UUID.randomUUID().toString()
+            SmsSender.sendFromVault(context, text(parameters, "to"), text(parameters, "body"), ref, intParam(parameters, "subscription_id") ?: -1)
+            mapOf("client_ref" to ref)
+        }
+    }
+
+    /** Block a number; with thread_id (and move true) its conversation moves into the vault. */
+    class Block(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            val move = parameters["move"] == true || parameters["move"] == "true"
+            mapOf("moved" to VaultOps.block(context, text(parameters, "number"), if (move) parameters["thread_id"] as? String else null))
+        }
+    }
+
+    class KeepPrivate(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            mapOf("moved" to VaultOps.keepPrivate(context, text(parameters, "thread_id"), (parameters["notify"] as? String) ?: "generic"))
+        }
+    }
+
+    class SetPrivateNotify(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            VaultStore.secretKey()
+            VaultOps.setPrivateNotify(context, text(parameters, "address"), text(parameters, "notify"))
+            mapOf("notify" to text(parameters, "notify"))
+        }
+    }
+
+    class MoveOutOfVault(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("restored" to VaultOps.moveOut(context, text(parameters, "address"))) }
+    }
+
+    /** The rules, inside the open vault only. */
+    class Rules(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            val list = VaultOps.rules(context).map {
+                org.json.JSONObject().put("id", it.id).put("kind", it.kind).put("action", it.action).put("notify", it.notify ?: org.json.JSONObject.NULL).put("pattern", it.pattern)
+            }
+            mapOf("rules_json" to org.json.JSONArray(list).toString())
+        }
+    }
+
+    class AddRule(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("id" to VaultOps.addRule(context, text(parameters, "kind"), text(parameters, "pattern"))) }
+    }
+
+    class RemoveRule(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault {
+            val r = VaultOps.removeRule(context, text(parameters, "id"))
+            mapOf("kind" to (r?.kind ?: ""), "pattern" to (r?.pattern ?: ""))
+        }
+    }
+
+    /** The private numbers' comparison keys (contacts leave them out). */
+    class PrivateKeys(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("keys" to VaultOps.privateKeys(context)) }
+    }
+
+    class ReportSpam(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { VaultOps.reportSpam(context, text(parameters, "thread_id")); mapOf("spam" to true) }
+    }
+
+    class NotSpam(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { VaultOps.notSpam(context, text(parameters, "thread_id")); mapOf("spam" to false) }
+    }
+
+    class PurgeSpam(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = vault { mapOf("purged" to VaultOps.purgeSpam(context)) }
+    }
+
+    /** DEBUG BUILDS ONLY: the real libsodium on this phone: a seal and open, a wrong key failing, and Argon2id's time. */
+    class VaultSelfTest(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            if (!VaultStore.isDebuggable(context)) return BridgeResponse.error("NOT_AVAILABLE", "only in a debug build")
+            return vault {
+                val c = SodiumCrypto
+                val (pk, sk) = c.keypair()
+                val sealed = c.seal(pk, "self test".toByteArray())
+                val opened = c.sealOpen(pk, sk, sealed)?.let { String(it) }
+                val wrong = c.sealOpen(pk, c.keypair().second, sealed)
+                val t0 = System.currentTimeMillis()
+                val key = c.pwhash("passphrase".toByteArray(), c.random(VaultCrypto.SALT_BYTES), VaultCrypto.OPS, VaultCrypto.MEM)
+                val ms = System.currentTimeMillis() - t0
+                val boxed = c.secretbox(key, sk)
+                mapOf("seal_open" to (opened == "self test"), "wrong_key_fails" to (wrong == null), "argon2id_ms" to ms, "secretbox" to (c.secretboxOpen(key, boxed)?.contentEquals(sk) == true))
+            }
+        }
+    }
+
     // -- writes for the app's Laravel, which opens sms.sqlite read-only (StoreWrites) --------------------------------------
 
     private fun str(parameters: Map<String, Any>, key: String): String? = (parameters[key] as? String)?.takeIf { it.isNotEmpty() }

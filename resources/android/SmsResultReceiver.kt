@@ -57,9 +57,17 @@ class SmsResultReceiver : BroadcastReceiver() {
         fun finish() { if (finished.compareAndSet(false, true)) pending.finish() }
         val messageId = intent.getStringExtra("message_id")
         val part = intent.getIntExtra("part", 0)
+        val fromVault = intent.getBooleanExtra("vault", false)
         Background.executor.execute {
             var handedToEphemeral = false
             try {
+                // the vault's copy (a private number from the normal composer) or a text sent from the vault: its readable
+                // state only; a vault text's journal line names nobody and never reaches PHP
+                val vaultMoved = VaultStore.countPart(appContext, clientRef, event, finalOk)
+                if (fromVault) {
+                    if (vaultMoved != null) EventJournal.append(appContext, "vault_status", JSONObject().put("status", vaultMoved))
+                    return@execute
+                }
                 val change = messageId?.let { id -> SmsDb.write(appContext) { db -> MessageStore.countPart(db, id, event, finalOk) } }
                 if (messageId != null && change == null) {
                     Log.i(TAG, "part $part of $clientRef: $event ok=$finalOk (message status unchanged)")

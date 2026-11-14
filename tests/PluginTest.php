@@ -39,3 +39,26 @@ it('gives every event a constructor parameter per native payload key', function 
 
     expect($params)->toEqual(['granted', 'default_package', 'api', 'reason', 'id']);
 });
+
+it('turns Android backup off in the generated manifest', function () {
+    $manifest = <<<'XML'
+<manifest><application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:label="App"><activity android:name=".Main"/></application></manifest>
+XML;
+    $out = \Blutrixx\NativephpSms\NoBackupManifest::harden($manifest);
+    expect($out)->toContain('android:allowBackup="false"')
+        ->not->toContain('allowBackup="true"')
+        ->not->toContain('fullBackupContent')
+        ->not->toContain('dataExtractionRules')
+        ->toContain('<activity android:name=".Main"/>');
+    expect(\Blutrixx\NativephpSms\NoBackupManifest::harden('<manifest><application android:label="A"></application></manifest>'))
+        ->toContain('<application android:allowBackup="false" android:label="A">');
+    $plugin = json_decode(file_get_contents(__DIR__.'/../nativephp.json'), true);
+    expect($plugin['hooks']['post_compile'])->toBe('sms:no-backup');
+    foreach (array_keys($plugin['assets']['android']) as $source) {
+        expect(file_exists(__DIR__.'/../resources/'.$source))->toBeTrue();
+    }
+});

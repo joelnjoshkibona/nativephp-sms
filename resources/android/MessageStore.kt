@@ -124,7 +124,7 @@ object MessageStore {
 
     /** A sent text from the system store's history (the import), with the status it ended in. */
     fun insertImportedOutgoing(
-        db: SQLiteDatabase, address: String, body: String, ts: Long, subId: Int?, systemId: Long, systemThreadId: Long?, status: String,
+        db: SQLiteDatabase, address: String, body: String, ts: Long, subId: Int?, systemId: Long?, systemThreadId: Long?, status: String,
         now: Long = System.currentTimeMillis(),
     ): Saved {
         existingBySystemId(db, systemId)?.let { return it }
@@ -133,7 +133,7 @@ object MessageStore {
         db.insertOrThrow("messages", null, ContentValues().apply {
             put("id", id)
             put("thread_id", threadId)
-            put("system_id", systemId)
+            if (systemId != null) put("system_id", systemId)
             put("direction", "out")
             put("address", address)
             put("body", body)
