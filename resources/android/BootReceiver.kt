@@ -10,6 +10,7 @@ import org.json.JSONObject
  * line either way. When the app was the default SMS app and no longer is (another SMS app was chosen, on purpose or not),
  * it posts a notification that leads back to the fix. On Transsion phones this receiver never runs while the app is
  * "Prohibited" in Phone Master's auto-start management, so a missing line after a reboot is itself the sign.
+ * It also deletes spam older than 30 days (the app does the same at start-up).
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -19,6 +20,17 @@ class BootReceiver : BroadcastReceiver() {
             else -> return
         }
         val keepAlive = KeepAliveService.startIfEnabled(context)
+        val pending = goAsync()
+        Background.executor.execute {
+            try {
+                val purged = VaultOps.purgeSpam(context)
+                if (purged > 0) EventJournal.append(context, "spam_purged", JSONObject().put("count", purged))
+            } catch (e: Exception) {
+                android.util.Log.w("SmsBoot", "spam purge failed", e)
+            } finally {
+                pending.finish()
+            }
+        }
         SmsPrefs.setLastBoot(context, reason, keepAlive)
         val isDefault = SmsStore.isDefaultSmsApp(context)
         EventJournal.append(context, "boot", JSONObject().put("reason", reason).put("keep_alive", keepAlive).put("is_default", isDefault))
