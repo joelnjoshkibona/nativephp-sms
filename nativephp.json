@@ -158,6 +158,214 @@
             "description": "Debug builds only: seal the vault to a test public key (base64, 32 bytes) before vault setup exists"
         },
         {
+            "name": "Sms.VaultState",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultState",
+            "android_params": [
+                "context"
+            ],
+            "description": "{exists, open}: whether a vault is set up and open"
+        },
+        {
+            "name": "Sms.VaultSetup",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultSetup",
+            "android_params": [
+                "context"
+            ],
+            "description": "Make the vault with a passphrase; answers the recovery key once"
+        },
+        {
+            "name": "Sms.VaultUnlock",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultUnlock",
+            "android_params": [
+                "context"
+            ],
+            "description": "Try a passphrase or the recovery key, always at the same cost"
+        },
+        {
+            "name": "Sms.VaultLock",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultLock",
+            "android_params": [
+                "context"
+            ],
+            "description": "Lock the vault"
+        },
+        {
+            "name": "Sms.VaultChangePassphrase",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultChangePassphrase",
+            "android_params": [
+                "context"
+            ],
+            "description": "A new passphrase for the open vault"
+        },
+        {
+            "name": "Sms.VaultWipe",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultWipe",
+            "android_params": [
+                "context"
+            ],
+            "description": "Erase every vault message and the keys (open vault)"
+        },
+        {
+            "name": "Sms.VaultConversations",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultConversations",
+            "android_params": [
+                "context"
+            ],
+            "description": "The open vault conversations, one per number"
+        },
+        {
+            "name": "Sms.VaultMessages",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultMessages",
+            "android_params": [
+                "context"
+            ],
+            "description": "One vault conversation messages"
+        },
+        {
+            "name": "Sms.HideMessages",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.HideMessages",
+            "android_params": [
+                "context"
+            ],
+            "description": "Seal messages into the vault and remove them from conversations and the system store"
+        },
+        {
+            "name": "Sms.HideThread",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.HideThread",
+            "android_params": [
+                "context"
+            ],
+            "description": "Hide a whole conversation"
+        },
+        {
+            "name": "Sms.VaultRestore",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultRestore",
+            "android_params": [
+                "context"
+            ],
+            "description": "Put vault messages back in a normal conversation"
+        },
+        {
+            "name": "Sms.VaultDelete",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultDelete",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete vault messages forever"
+        },
+        {
+            "name": "Sms.VaultDeleteConversation",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultDeleteConversation",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete a vault conversation forever"
+        },
+        {
+            "name": "Sms.VaultSend",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultSend",
+            "android_params": [
+                "context"
+            ],
+            "description": "Send a text from the vault, kept only there"
+        },
+        {
+            "name": "Sms.Block",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.Block",
+            "android_params": [
+                "context"
+            ],
+            "description": "Block a number, optionally moving its conversation into the vault"
+        },
+        {
+            "name": "Sms.KeepPrivate",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.KeepPrivate",
+            "android_params": [
+                "context"
+            ],
+            "description": "Keep a number in the vault (private), moving its conversation"
+        },
+        {
+            "name": "Sms.SetPrivateNotify",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SetPrivateNotify",
+            "android_params": [
+                "context"
+            ],
+            "description": "A private number notifications: generic or silent"
+        },
+        {
+            "name": "Sms.MoveOutOfVault",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.MoveOutOfVault",
+            "android_params": [
+                "context"
+            ],
+            "description": "A private number back to normal, its messages restored"
+        },
+        {
+            "name": "Sms.Rules",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.Rules",
+            "android_params": [
+                "context"
+            ],
+            "description": "The blocklist and private numbers (open vault)"
+        },
+        {
+            "name": "Sms.AddRule",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.AddRule",
+            "android_params": [
+                "context"
+            ],
+            "description": "Add a number, prefix, wildcard or keyword rule (open vault)"
+        },
+        {
+            "name": "Sms.RemoveRule",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.RemoveRule",
+            "android_params": [
+                "context"
+            ],
+            "description": "Remove a rule (open vault)"
+        },
+        {
+            "name": "Sms.PrivateKeys",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.PrivateKeys",
+            "android_params": [
+                "context"
+            ],
+            "description": "Private numbers comparison keys"
+        },
+        {
+            "name": "Sms.ReportSpam",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.ReportSpam",
+            "android_params": [
+                "context"
+            ],
+            "description": "Report a conversation as spam"
+        },
+        {
+            "name": "Sms.NotSpam",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.NotSpam",
+            "android_params": [
+                "context"
+            ],
+            "description": "A conversation is not spam"
+        },
+        {
+            "name": "Sms.PurgeSpam",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.PurgeSpam",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete spam conversations older than 30 days"
+        },
+        {
+            "name": "Sms.VaultSelfTest",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultSelfTest",
+            "android_params": [
+                "context"
+            ],
+            "description": "Debug builds only: libsodium round trip and Argon2id timing"
+        },
+        {
             "name": "Sms.SaveThread",
             "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SaveThread",
             "android_params": [
@@ -487,5 +695,14 @@
         ]
     },
     "secrets": [],
-    "service_provider": "Blutrixx\\NativephpSms\\SmsServiceProvider"
+    "service_provider": "Blutrixx\\NativephpSms\\SmsServiceProvider",
+    "hooks": {
+        "post_compile": "sms:no-backup"
+    },
+    "assets": {
+        "android": {
+            "android-res/backup_rules.xml": "res/xml/backup_rules.xml",
+            "android-res/data_extraction_rules.xml": "res/xml/data_extraction_rules.xml"
+        }
+    }
 }

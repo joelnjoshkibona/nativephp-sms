@@ -40,22 +40,27 @@ object SmsStore {
         null
     }
 
+    /** Tests only: told the address and words of every write to the phone's SMS store (the vault gate test). */
+    @Volatile internal var onWrite: ((String, String) -> Unit)? = null
+
     fun insertInbox(
         context: Context,
         address: String,
         body: String,
         dateMillis: Long,
         dateSentMillis: Long,
-        subscriptionId: Int
+        subscriptionId: Int,
+        read: Boolean = false,
     ): Inserted {
+        onWrite?.invoke(address, body)
         val threadId = threadIdFor(context, address)
         val values = ContentValues().apply {
             put(Telephony.Sms.ADDRESS, address)
             put(Telephony.Sms.BODY, body)
             put(Telephony.Sms.DATE, dateMillis)
             put(Telephony.Sms.DATE_SENT, dateSentMillis)
-            put(Telephony.Sms.READ, 0)
-            put(Telephony.Sms.SEEN, 0)
+            put(Telephony.Sms.READ, if (read) 1 else 0)
+            put(Telephony.Sms.SEEN, if (read) 1 else 0)
             put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_INBOX)
             if (subscriptionId >= 0) put(Telephony.Sms.SUBSCRIPTION_ID, subscriptionId)
             if (threadId != null) put(Telephony.Sms.THREAD_ID, threadId)
@@ -69,7 +74,32 @@ object SmsStore {
         }
     }
 
+    /** A text already sent (restored from the vault), with its original time. Only while this is the default SMS app. */
+    fun insertSent(context: Context, address: String, body: String, dateMillis: Long, subscriptionId: Int): Inserted {
+        if (!isDefaultSmsApp(context)) return Inserted(null, null)
+        onWrite?.invoke(address, body)
+        val threadId = threadIdFor(context, address)
+        val values = ContentValues().apply {
+            put(Telephony.Sms.ADDRESS, address)
+            put(Telephony.Sms.BODY, body)
+            put(Telephony.Sms.DATE, dateMillis)
+            put(Telephony.Sms.READ, 1)
+            put(Telephony.Sms.SEEN, 1)
+            put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT)
+            if (subscriptionId >= 0) put(Telephony.Sms.SUBSCRIPTION_ID, subscriptionId)
+            if (threadId != null) put(Telephony.Sms.THREAD_ID, threadId)
+        }
+        return try {
+            val uri = context.contentResolver.insert(Telephony.Sms.Sent.CONTENT_URI, values)
+            Inserted(uri?.lastPathSegment?.toLongOrNull(), threadId)
+        } catch (e: Exception) {
+            Log.e(TAG, "insertSent failed", e)
+            Inserted(null, threadId)
+        }
+    }
+
     fun insertOutbox(context: Context, address: String, body: String, subscriptionId: Int): Inserted {
+        onWrite?.invoke(address, body)
         val threadId = threadIdFor(context, address)
         val values = ContentValues().apply {
             put(Telephony.Sms.ADDRESS, address)

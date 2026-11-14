@@ -2,6 +2,7 @@
 
 namespace Blutrixx\NativephpSms;
 
+use Blutrixx\NativephpSms\Commands\NoBackupCommand;
 use Blutrixx\NativephpSms\Commands\SmsReceivedCommand;
 use Blutrixx\NativephpSms\Commands\SmsStatusCommand;
 use Illuminate\Support\ServiceProvider;
@@ -21,6 +22,7 @@ class SmsServiceProvider extends ServiceProvider
         $this->commands([
             SmsReceivedCommand::class,
             SmsStatusCommand::class,
+            NoBackupCommand::class, // the build's post_compile hook (nativephp.json): Android backup off
         ]);
     }
 }

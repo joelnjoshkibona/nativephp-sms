@@ -11,10 +11,42 @@ import javax.crypto.KeyGenerator
 abstract class DbTestBase {
     protected lateinit var context: Context
 
-    /** Robolectric runs no libsodium: "sealed:" + the bytes reversed, so a test can open what it sealed. */
-    object TestSealer : VaultStore.Sealer {
-        override fun seal(publicKey: ByteArray, message: ByteArray): ByteArray = "sealed:".toByteArray() + message.reversedArray()
-        fun open(sealed: ByteArray): String = String(sealed.copyOfRange(7, sealed.size).reversedArray(), Charsets.UTF_8)
+    /**
+     * Robolectric runs no libsodium. A stand-in with the same rules: a sealed box opens only with the private key of its
+     * public key, a wrapped key only with its wrapping key; Argon2id is SHA-256 here, and counted.
+     */
+    object TestCrypto : VaultCrypto {
+        private val rnd = java.security.SecureRandom()
+        var pwhashCalls = 0
+        private fun sha(vararg parts: ByteArray) = java.security.MessageDigest.getInstance("SHA-256").apply { parts.forEach { update(it) } }.digest()
+        override fun keypair(): Pair<ByteArray, ByteArray> { val sk = random(32); return sha(sk) to sk }
+        override fun seal(publicKey: ByteArray, message: ByteArray) = "sealed:".toByteArray() + publicKey + message.reversedArray()
+        override fun sealOpen(publicKey: ByteArray, secretKey: ByteArray, sealed: ByteArray): ByteArray? {
+            if (!sha(secretKey).contentEquals(publicKey) || !sealed.copyOfRange(7, 39).contentEquals(publicKey)) return null
+            return sealed.copyOfRange(39, sealed.size).reversedArray()
+        }
+        override fun pwhash(passphrase: ByteArray, salt: ByteArray, ops: Long, mem: Long): ByteArray { pwhashCalls++; return sha(passphrase, salt) }
+        override fun secretbox(key: ByteArray, message: ByteArray): ByteArray {
+            val c = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding").apply { init(javax.crypto.Cipher.ENCRYPT_MODE, javax.crypto.spec.SecretKeySpec(key, "AES")) }
+            return c.iv + c.doFinal(message)
+        }
+        override fun secretboxOpen(key: ByteArray, boxed: ByteArray): ByteArray? = runCatching {
+            javax.crypto.Cipher.getInstance("AES/GCM/NoPadding").apply { init(javax.crypto.Cipher.DECRYPT_MODE, javax.crypto.spec.SecretKeySpec(key, "AES"), javax.crypto.spec.GCMParameterSpec(128, boxed, 0, 12)) }.doFinal(boxed, 12, boxed.size - 12)
+        }.getOrNull()
+        override fun hash(input: ByteArray) = sha(input)
+        override fun random(n: Int) = ByteArray(n).also { rnd.nextBytes(it) }
+        /** What a stand-in box holds, without the key (to check what was sealed). */
+        fun peek(sealed: ByteArray): String = String(sealed.copyOfRange(39, sealed.size).reversedArray(), Charsets.UTF_8)
+    }
+
+    /** A radio that splits like Android (153 per part when split) and keeps what it was asked to send. */
+    object TestRadio : SmsSender.Radio {
+        val sent = mutableListOf<Pair<String, List<String>>>()
+        override fun divide(context: Context, subscriptionId: Int, body: String) =
+            ArrayList(if (body.length <= 160) listOf(body) else body.chunked(153))
+        override fun send(context: Context, subscriptionId: Int, to: String, parts: ArrayList<String>, sent: ArrayList<android.app.PendingIntent>, delivered: ArrayList<android.app.PendingIntent>) {
+            this.sent += to to parts
+        }
     }
 
     @Before fun openFresh() {
@@ -30,7 +62,11 @@ abstract class DbTestBase {
             override fun encrypt(plain: String) = Blocklist.aesEncrypt(key, plain)
             override fun decrypt(stored: String) = Blocklist.aesDecrypt(key, stored)
         }
-        VaultStore.sealer = TestSealer
+        VaultStore.crypto = TestCrypto
+        TestCrypto.pwhashCalls = 0
+        SmsStore.onWrite = null
+        SmsSender.radio = TestRadio
+        TestRadio.sent.clear()
     }
 
     @After fun close() {

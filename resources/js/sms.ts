@@ -84,6 +84,36 @@ export interface SmsSendResult {
     duplicate: boolean
 }
 
+export interface VaultConversation {
+    address: string
+    name: string | null
+    /** private: a private number; blocked: a blocked sender; hidden: hidden messages */
+    tag: 'private' | 'blocked' | 'hidden'
+    notify: 'generic' | 'silent' | null
+    last_at: number
+    last_body: string
+    last_out: boolean
+    count: number
+}
+
+export interface VaultMessage {
+    id: string
+    why: 'private' | 'blocked' | 'hidden'
+    direction: 'in' | 'out'
+    address: string
+    body: string
+    ts: number
+    status: string
+}
+
+export interface VaultRule {
+    id: string
+    kind: 'number' | 'prefix' | 'wildcard' | 'keyword'
+    action: 'block' | 'private'
+    notify: 'generic' | 'silent' | null
+    pattern: string
+}
+
 export interface SmsImportStatus {
     /** none: never started; interrupted: started and the app was killed (StartImport carries on) */
     state: 'none' | 'running' | 'interrupted' | 'done'
@@ -221,6 +251,49 @@ export const sms = {
 
     /** The conversation a tapped notification asked to open, once ('' when none). */
     takePendingOpen: () => bridgeCall<{ thread: string }>('Sms.TakePendingOpen'),
+
+    // -- the vault (1.3) ------------------------------------------------------------------------------------------------
+
+    /** Whether a vault is set up, and open now. */
+    vaultState: () => bridgeCall<{ exists: boolean; open: boolean }>('Sms.VaultState'),
+    /** Makes the vault; answers the recovery key, the only time it is shown. Leaves it open. */
+    vaultSetup: (passphrase: string) => bridgeCall<{ recovery_key: string }>('Sms.VaultSetup', { passphrase }),
+    /** Tries the passphrase or the recovery key; always takes the same time. */
+    vaultUnlock: (typed: string) => bridgeCall<{ open: boolean }>('Sms.VaultUnlock', { typed }),
+    vaultLock: () => bridgeCall<{ open: boolean }>('Sms.VaultLock'),
+    vaultChangePassphrase: (passphrase: string) => bridgeCall<{ changed: boolean }>('Sms.VaultChangePassphrase', { passphrase }),
+    vaultWipe: () => bridgeCall<{ wiped: boolean }>('Sms.VaultWipe'),
+    async vaultConversations(): Promise<{ conversations: VaultConversation[]; rules: number }> {
+        const r = await bridgeCall<{ conversations_json: string; rules: number }>('Sms.VaultConversations')
+        return { conversations: JSON.parse(r.conversations_json || '[]'), rules: r.rules }
+    },
+    async vaultMessages(address: string): Promise<VaultMessage[]> {
+        const r = await bridgeCall<{ messages_json: string }>('Sms.VaultMessages', { address })
+        return JSON.parse(r.messages_json || '[]')
+    },
+    hideMessages: (ids: string[]) => bridgeCall<{ hidden: number }>('Sms.HideMessages', { ids }),
+    hideThread: (id: string) => bridgeCall<{ hidden: number }>('Sms.HideThread', { id }),
+    vaultRestore: (ids: string[]) => bridgeCall<{ restored: number }>('Sms.VaultRestore', { ids }),
+    vaultDelete: (ids: string[]) => bridgeCall<{ deleted: number }>('Sms.VaultDelete', { ids }),
+    vaultDeleteConversation: (address: string) => bridgeCall<{ deleted: number }>('Sms.VaultDeleteConversation', { address }),
+    vaultSend: (to: string, body: string, subscriptionId?: number | null, clientRef?: string) =>
+        bridgeCall<{ client_ref: string }>('Sms.VaultSend', { to, body, subscription_id: subscriptionId ?? undefined, client_ref: clientRef }),
+    block: (number: string, threadId?: string, move = false) => bridgeCall<{ moved: number }>('Sms.Block', { number, thread_id: threadId, move }),
+    keepPrivate: (threadId: string, notify: 'generic' | 'silent' = 'generic') => bridgeCall<{ moved: number }>('Sms.KeepPrivate', { thread_id: threadId, notify }),
+    setPrivateNotify: (address: string, notify: 'generic' | 'silent') => bridgeCall<{ notify: string }>('Sms.SetPrivateNotify', { address, notify }),
+    moveOutOfVault: (address: string) => bridgeCall<{ restored: number }>('Sms.MoveOutOfVault', { address }),
+    async rules(): Promise<VaultRule[]> {
+        const r = await bridgeCall<{ rules_json: string }>('Sms.Rules')
+        return JSON.parse(r.rules_json || '[]')
+    },
+    addRule: (kind: VaultRule['kind'], pattern: string) => bridgeCall<{ id: string }>('Sms.AddRule', { kind, pattern }),
+    removeRule: (id: string) => bridgeCall<{ kind: string; pattern: string }>('Sms.RemoveRule', { id }),
+    privateKeys: () => bridgeCall<{ keys: string[] }>('Sms.PrivateKeys'),
+    reportSpam: (threadId: string) => bridgeCall<{ spam: boolean }>('Sms.ReportSpam', { thread_id: threadId }),
+    notSpam: (threadId: string) => bridgeCall<{ spam: boolean }>('Sms.NotSpam', { thread_id: threadId }),
+    purgeSpam: () => bridgeCall<{ purged: number }>('Sms.PurgeSpam'),
+    /** Debug builds only: libsodium on this phone, and Argon2id's time. */
+    vaultSelfTest: () => bridgeCall<{ seal_open: boolean; wrong_key_fails: boolean; argon2id_ms: number; secretbox: boolean }>('Sms.VaultSelfTest'),
 
     /** Starts (or resumes) the first-run import of the system store; once done, copies only what is new. */
     startImport: () => bridgeCall<SmsImportStatus & { started: boolean }>('Sms.StartImport'),
