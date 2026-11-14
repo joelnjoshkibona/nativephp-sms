@@ -45,6 +45,17 @@ object SmsFunctions {
     private val READER = Regex("^[a-z0-9_-]{1,40}$")
 
     /** Role / permission / device state, in one call. The first thing the spike screen shows. */
+    /** Installed from a file (a browser download, a file manager) on Android 13 or newer: restricted settings apply. */
+    private fun restrictedSettingsLikely(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+        return try {
+            val source = context.packageManager.getInstallSourceInfo(context.packageName).packageSource
+            source == android.content.pm.PackageInstaller.PACKAGE_SOURCE_LOCAL_FILE || source == android.content.pm.PackageInstaller.PACKAGE_SOURCE_DOWNLOADED_FILE
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     class GetStatus(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>): Map<String, Any> {
             val defaultPackage = Telephony.Sms.getDefaultSmsPackage(context) ?: ""
@@ -74,6 +85,9 @@ object SmsFunctions {
                     "role_available" to roleAvailable,
                     "role_held" to roleHeld,
                     "uses_role_manager" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q),
+                    // Android 13+ holds back the SMS role from an app installed from a file until the person allows
+                    // "restricted settings" for it (App info > menu): first run then says how
+                    "restricted_settings" to restrictedSettingsLikely(context),
                     "permissions" to RUNTIME_PERMISSIONS.associateWith { granted(context, it) },
                     "notifications_enabled" to NotificationManagerCompat.from(context).areNotificationsEnabled(),
                     "battery_exempt" to power.isIgnoringBatteryOptimizations(context.packageName),

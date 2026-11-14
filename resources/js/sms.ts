@@ -10,6 +10,8 @@
 const ENDPOINT = '/_native/api/call'
 
 export interface SmsStatus {
+    /** Android 13+, installed from a file: the SMS role waits until "Allow restricted settings" in App info. */
+    restricted_settings?: boolean
     api: number
     manufacturer: string
     model: string
