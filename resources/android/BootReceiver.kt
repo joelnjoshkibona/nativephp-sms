@@ -7,9 +7,9 @@ import org.json.JSONObject
 
 /**
  * Restarts the keep-alive service after a reboot or an app update, when the setting is on, and writes a `boot` journal
- * line either way. When the app was the default SMS app and no longer is (some makers hand the role to another app on an
- * update), it posts a notification that leads back to the fix. On Transsion phones this receiver never runs while the app is "Prohibited" in Phone Master's
- * auto-start management, so a missing line after a reboot is itself the sign.
+ * line either way. When the app was the default SMS app and no longer is (another SMS app was chosen, on purpose or not),
+ * it posts a notification that leads back to the fix. On Transsion phones this receiver never runs while the app is
+ * "Prohibited" in Phone Master's auto-start management, so a missing line after a reboot is itself the sign.
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

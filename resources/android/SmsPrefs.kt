@@ -84,8 +84,8 @@ object SmsPrefs {
     fun lastBootCompletedAt(context: Context): Long = prefs(context).getLong(KEY_BOOT_COMPLETED_AT, 0L)
 
     /**
-     * Whether this app has been the default SMS app, and when it was found to be no longer (0: it is, or never was). Some
-     * makers' software (Transsion's, seen on an Infinix) hands the SMS role back to another app when this one is updated.
+     * Whether this app has been the default SMS app, and when it was found to be no longer (0: it is, or never was): the
+     * person switched to another SMS app and may have forgotten to switch back, or something else took the role.
      */
     fun wasDefault(context: Context): Boolean = prefs(context).getBoolean(KEY_DEFAULT_SEEN, false)
     fun defaultLostAt(context: Context): Long = prefs(context).getLong(KEY_DEFAULT_LOST_AT, 0L)
