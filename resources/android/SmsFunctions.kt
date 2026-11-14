@@ -73,7 +73,13 @@ object SmsFunctions {
                     "blocklist_size" to SmsPrefs.blocklistSize(context),
                     "ephemeral_enabled" to SmsPrefs.isEphemeralEnabled(context),
                     "keep_alive_enabled" to SmsPrefs.isKeepAliveEnabled(context),
-                    "keep_alive_running" to KeepAliveService.running
+                    "keep_alive_running" to KeepAliveService.running,
+                    // when the phone last started (epoch ms) and when the boot receiver last ran: a run after the phone's
+                    // start proves Android lets the app start by itself (Transsion's auto-start, for one)
+                    "booted_at" to (System.currentTimeMillis() - android.os.SystemClock.elapsedRealtime()),
+                    "last_boot_at" to SmsPrefs.lastBootAt(context),
+                    "last_boot_reason" to SmsPrefs.lastBootReason(context),
+                    "last_boot_keep_alive" to SmsPrefs.lastBootKeepAlive(context)
                 )
             )
         }
@@ -264,6 +270,31 @@ object SmsFunctions {
                 BridgeResponse.success(mapOf("launched" to true))
             } catch (e: Exception) {
                 BridgeResponse.error("LAUNCH_FAILED", e.message ?: "Failed to open the battery-optimisation prompt")
+            }
+        }
+    }
+
+    /**
+     * Opens one of the app's Android settings pages: `notifications` (the app's notification settings), `autostart`
+     * (as OpenAutostartSettings) or `app` (the app's own page). `screen` says which one opened.
+     */
+    class OpenSettings(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val page = parameters["page"] as? String ?: "app"
+            if (page == "autostart") return OpenAutostartSettings(activity).execute(parameters)
+            if (page == "notifications" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    activity.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName))
+                    return BridgeResponse.success(mapOf("launched" to true, "screen" to "notifications"))
+                } catch (e: Exception) {
+                    // fall through to the app's page
+                }
+            }
+            return try {
+                activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${activity.packageName}")))
+                BridgeResponse.success(mapOf("launched" to true, "screen" to "app_details"))
+            } catch (e: Exception) {
+                BridgeResponse.error("LAUNCH_FAILED", e.message ?: "Failed to open the settings")
             }
         }
     }

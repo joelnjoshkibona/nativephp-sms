@@ -16,6 +16,9 @@ object SmsPrefs {
     private const val KEY_COMPOSE_TO = "pending_compose_to"
     private const val KEY_COMPOSE_BODY = "pending_compose_body"
     private const val KEY_COMPOSE_PENDING = "pending_compose"
+    private const val KEY_BOOT_AT = "last_boot_at"
+    private const val KEY_BOOT_REASON = "last_boot_reason"
+    private const val KEY_BOOT_KEEP_ALIVE = "last_boot_keep_alive"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -62,6 +65,15 @@ object SmsPrefs {
 
     fun isKeepAliveEnabled(context: Context): Boolean =
         prefs(context).getBoolean(KEY_KEEP_ALIVE, false)
+
+    /** The last time the boot receiver ran (epoch ms), why, and what keep-alive did: proof that the app starts by itself. */
+    fun setLastBoot(context: Context, reason: String, keepAlive: String) {
+        prefs(context).edit().putLong(KEY_BOOT_AT, System.currentTimeMillis()).putString(KEY_BOOT_REASON, reason).putString(KEY_BOOT_KEEP_ALIVE, keepAlive).apply()
+    }
+
+    fun lastBootAt(context: Context): Long = prefs(context).getLong(KEY_BOOT_AT, 0L)
+    fun lastBootReason(context: Context): String = prefs(context).getString(KEY_BOOT_REASON, "") ?: ""
+    fun lastBootKeepAlive(context: Context): String = prefs(context).getString(KEY_BOOT_KEEP_ALIVE, "") ?: ""
 
     fun setPendingCompose(context: Context, to: String, body: String) {
         prefs(context).edit()

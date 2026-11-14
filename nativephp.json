@@ -132,6 +132,14 @@
                 "activity"
             ],
             "description": "Open Phone Master's auto-start screen on Transsion phones, else the app's settings page"
+        },
+        {
+            "name": "Sms.OpenSettings",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.OpenSettings",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Open the app's notification settings, auto-start screen or Android settings page"
         }
     ],
     "events": [

@@ -18,6 +18,7 @@ class BootReceiver : BroadcastReceiver() {
             else -> return
         }
         val keepAlive = KeepAliveService.startIfEnabled(context)
+        SmsPrefs.setLastBoot(context, reason, keepAlive)
         EventJournal.append(context, "boot", JSONObject().put("reason", reason).put("keep_alive", keepAlive))
     }
 }

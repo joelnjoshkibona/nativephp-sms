@@ -92,6 +92,12 @@ class Sms
         return $this->call('Sms.RequestBatteryOptimizationExemption');
     }
 
+    /** The app's notification settings, auto-start screen (Transsion) or Android settings page: notifications|autostart|app. */
+    public function openSettings(string $page = 'app'): array
+    {
+        return $this->call('Sms.OpenSettings', ['page' => $page]);
+    }
+
     /** Phone Master's auto-start screen on Transsion phones (Infinix, Tecno, itel), else the app's settings page. */
     public function openAutostartSettings(): array
     {

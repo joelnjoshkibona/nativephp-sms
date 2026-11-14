@@ -28,6 +28,12 @@ export interface SmsStatus {
     ephemeral_enabled: boolean
     keep_alive_enabled: boolean
     keep_alive_running: boolean
+    /** when the phone last started, epoch ms */
+    booted_at: number
+    /** when the boot receiver last ran (0: never), why, and what keep-alive did then */
+    last_boot_at: number
+    last_boot_reason: '' | 'boot_completed' | 'package_replaced'
+    last_boot_keep_alive: string
 }
 
 export interface SmsThread {
@@ -183,6 +189,10 @@ export const sms = {
 
     requestBatteryOptimizationExemption: () =>
         bridgeCall<{ launched: boolean }>('Sms.RequestBatteryOptimizationExemption'),
+
+    /** The app's notification settings, auto-start screen (Transsion) or Android settings page. */
+    openSettings: (page: 'notifications' | 'autostart' | 'app') =>
+        bridgeCall<{ launched: boolean; screen: 'notifications' | 'autostart' | 'app_details' }>('Sms.OpenSettings', { page }),
 
     /** Phone Master's auto-start screen on Transsion phones, else the app's settings page. */
     openAutostartSettings: () =>
