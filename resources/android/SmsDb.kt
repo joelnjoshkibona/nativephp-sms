@@ -49,6 +49,9 @@ object SmsDb {
             if (c.moveToFirst()) c.getString(0) else null
         }
 
+    fun setting(db: SQLiteDatabase, key: String): String? =
+        db.rawQuery("SELECT value FROM settings WHERE key = ?", arrayOf(key)).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+
     fun setSetting(db: SQLiteDatabase, key: String, value: String?) {
         if (value == null) {
             db.delete("settings", "key = ?", arrayOf(key))

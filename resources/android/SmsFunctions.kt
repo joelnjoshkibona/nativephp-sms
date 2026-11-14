@@ -303,6 +303,68 @@ object SmsFunctions {
             BridgeResponse.success(mapOf("thread" to (SmsPrefs.takePendingOpen(context) ?: "")))
     }
 
+    // -- backup and export (2.1) -------------------------------------------------------------------------------------------
+
+    private fun pick(activity: FragmentActivity, id: String?, mode: String) = activity.runOnUiThread {
+        val fm = activity.supportFragmentManager
+        fm.findFragmentByTag(DocumentFragment.TAG_NAME)?.let { fm.beginTransaction().remove(it).commitNowAllowingStateLoss() }
+        fm.beginTransaction().add(android.R.id.content, DocumentFragment.newInstance(id, mode), DocumentFragment.TAG_NAME).commitAllowingStateLoss()
+    }
+
+    /** Asks where to save a backup file and writes it there; the result is the DocumentResult event. Needs a vault. */
+    class BackupExport(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            if (!VaultStore.exists(activity)) return BridgeResponse.error("NO_VAULT", "Set up the vault first.")
+            pick(activity, parameters["id"] as? String, "backup")
+            return BridgeResponse.success(mapOf("launched" to true))
+        }
+    }
+
+    /** Asks where to save the readable export (a zip of the normal texts) and writes it; the DocumentResult event. */
+    class ExportReadable(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            pick(activity, parameters["id"] as? String, "readable")
+            return BridgeResponse.success(mapOf("launched" to true))
+        }
+    }
+
+    /** Asks for a backup file and reads its header; the DocumentResult event says when it was made. */
+    class BackupPick(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            pick(activity, parameters["id"] as? String, "open")
+            return BridgeResponse.success(mapOf("launched" to true))
+        }
+    }
+
+    /** Restores the picked backup with the passphrase or the recovery key (one Argon2id). */
+    class BackupRestore(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val file = DocumentFragment.restoreFile(context)
+            if (!file.exists()) return BridgeResponse.error("NO_FILE", "Pick a backup file first.")
+            return try {
+                val r = Backup.restore(context, file.readBytes(), (parameters["typed"] as? String) ?: "")
+                file.delete()
+                EventJournal.append(context, "backup_restored", org.json.JSONObject().put("vault_rows", r.vaultRows).put("rules", r.rules))
+                BridgeResponse.success(mapOf("vault_rows" to r.vaultRows, "rules" to r.rules, "settings" to r.settings, "conversations" to r.conversations))
+            } catch (e: Backup.WrongKey) {
+                BridgeResponse.error("WRONG_KEY", "That passphrase or recovery key does not open this backup.")
+            } catch (e: Backup.VaultExists) {
+                BridgeResponse.error("EXISTS", e.message ?: "A vault exists")
+            } catch (e: Backup.NotABackup) {
+                BridgeResponse.error("NOT_A_BACKUP", e.message ?: "Not a backup")
+            } catch (e: Exception) {
+                Log.e(TAG, "restore failed", e)
+                BridgeResponse.error("RESTORE_FAILED", e.javaClass.simpleName)
+            }
+        }
+    }
+
+    /** {vault, last_file_at}: whether a backup can be made, and when the last one was saved to a file. */
+    class BackupState(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> =
+            BridgeResponse.success(mapOf("vault" to VaultStore.exists(context), "last_file_at" to (SmsDb.setting(context, "backup.last-file")?.toLongOrNull() ?: 0L)))
+    }
+
     // -- the vault (1.3): setup, unlock, what is in it, hiding, blocking, private numbers, spam -----------------------------
 
     /** LOCKED, NO_VAULT, EXISTS, INVALID, NOT_FOUND or VAULT_FAILED; never an exception across the bridge. */

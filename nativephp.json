@@ -158,6 +158,46 @@
             "description": "Debug builds only: seal the vault to a test public key (base64, 32 bytes) before vault setup exists"
         },
         {
+            "name": "Sms.BackupExport",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.BackupExport",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Save a backup file where the user picks; result as the DocumentResult event"
+        },
+        {
+            "name": "Sms.ExportReadable",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.ExportReadable",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Save the normal texts as a readable zip; result as the DocumentResult event"
+        },
+        {
+            "name": "Sms.BackupPick",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.BackupPick",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Pick a backup file to restore; its header arrives as the DocumentResult event"
+        },
+        {
+            "name": "Sms.BackupRestore",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.BackupRestore",
+            "android_params": [
+                "context"
+            ],
+            "description": "Restore the picked backup with the passphrase or recovery key"
+        },
+        {
+            "name": "Sms.BackupState",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.BackupState",
+            "android_params": [
+                "context"
+            ],
+            "description": "Whether a backup can be made, and when the last file was saved"
+        },
+        {
             "name": "Sms.VaultState",
             "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.VaultState",
             "android_params": [
@@ -495,7 +535,8 @@
         }
     ],
     "events": [
-        "Blutrixx\\NativephpSms\\Events\\DefaultSmsResult"
+        "Blutrixx\\NativephpSms\\Events\\DefaultSmsResult",
+        "Blutrixx\\NativephpSms\\Events\\DocumentResult"
     ],
     "android": {
         "min_version": 26,
