@@ -147,6 +147,8 @@ object VaultOps {
         val rows = VaultStore.rows(context).filter { it.id in wanted }
         val now = System.currentTimeMillis()
         for (row in rows) {
+            // the vault's copy of a text sent from the normal composer: the original is still in its conversation
+            if (row.clientRef != null && hasClientRef(context, row.clientRef)) continue
             val r = row.record
             val address = addressOf(r)
             val body = r.optString("body")
@@ -165,6 +167,9 @@ object VaultOps {
         VaultStore.delete(context, rows.map { it.id })
         return rows.size
     }
+
+    private fun hasClientRef(context: Context, ref: String): Boolean =
+        SmsDb.get(context).rawQuery("SELECT 1 FROM messages WHERE client_ref = ? LIMIT 1", arrayOf(ref)).use { it.moveToFirst() }
 
     /** Move out of vault: the number goes back to the normal rules and every message to a normal conversation. */
     fun moveOut(context: Context, address: String): Int {

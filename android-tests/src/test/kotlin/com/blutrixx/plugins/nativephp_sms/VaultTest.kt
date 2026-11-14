@@ -154,6 +154,11 @@ class VaultTest : DbTestBase() {
         assertEquals(listOf("out", "from the normal screen", "queued"), listOf(copy.getString("direction"), copy.getString("body"), copy.getString("status")))
         SmsDb.write(context) { MessageStore.countPart(it, sent.messageId!!, "sent", true) }
         assertEquals("sent", VaultStore.countPart(context, "ref-n", "sent", true))
+        // moving out puts back what only the vault had, and never a second copy of the text sent normally
+        VaultOps.moveOut(context, "+255700000007")
+        assertEquals(1L, count("SELECT COUNT(*) FROM messages WHERE body = 'from the normal screen'"))
+        assertEquals(1L, count("SELECT COUNT(*) FROM messages WHERE body = 'hi'"))
+        assertEquals(0, VaultStore.count(context))
     }
 
     // -- spam ------------------------------------------------------------------------------------------------------
