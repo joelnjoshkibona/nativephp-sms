@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import android.util.Base64
 import android.util.Log
 import com.goterl.lazysodium.interfaces.Box
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
@@ -159,7 +160,76 @@ object VaultStore {
         lock()
     }
 
-    private class Meta(val publicKey: ByteArray, val salt: ByteArray, val ops: Long, val mem: Long, val skByPass: ByteArray, val skByRecovery: ByteArray)
+    internal class Meta(val publicKey: ByteArray, val salt: ByteArray, val ops: Long, val mem: Long, val skByPass: ByteArray, val skByRecovery: ByteArray) {
+        fun toJson(): JSONObject {
+            val b64 = { b: ByteArray -> Base64.encodeToString(b, Base64.NO_WRAP) }
+            return JSONObject().put("public_key", b64(publicKey)).put("kdf_salt", b64(salt)).put("kdf_ops", ops).put("kdf_mem", mem)
+                .put("sk_by_pass", b64(skByPass)).put("sk_by_recovery", b64(skByRecovery))
+        }
+
+        companion object {
+            fun fromJson(j: JSONObject): Meta {
+                val d = { k: String -> Base64.decode(j.getString(k), Base64.NO_WRAP) }
+                return Meta(d("public_key"), d("kdf_salt"), j.getLong("kdf_ops"), j.getLong("kdf_mem"), d("sk_by_pass"), d("sk_by_recovery"))
+            }
+        }
+    }
+
+    // -- for a backup (Backup.kt): the wrapped keys and the sealed rows as they are --------------------------------------
+
+    /** The set-up vault's wrapped keys and settings (safe to copy: nothing here opens without the passphrase or key). */
+    internal fun exportMeta(context: Context): Meta? = meta(context)
+
+    /** The private key from wrapped keys: what was typed as the passphrase, then as the recovery key. */
+    internal fun unwrap(meta: Meta, typed: String): ByteArray? {
+        val c = crypto
+        val passKey = c.pwhash(typed.toByteArray(Charsets.UTF_8), meta.salt, meta.ops, meta.mem)
+        val sk = c.secretboxOpen(passKey, meta.skByPass) ?: RecoveryKey.parse(typed)?.let { c.secretboxOpen(c.hash(it), meta.skByRecovery) }
+        passKey.fill(0)
+        return sk
+    }
+
+    /** Every row as stored: still sealed, with its readable state. */
+    internal fun rawRows(context: Context): JSONArray =
+        db(context).rawQuery("SELECT id, ts, ciphertext, status, client_ref, parts_total, parts_sent, parts_delivered, parts_failed FROM vault_messages ORDER BY ts", null).use { c ->
+            JSONArray().apply {
+                while (c.moveToNext()) put(JSONObject().put("id", c.getString(0)).put("ts", c.getLong(1))
+                    .put("ciphertext", Base64.encodeToString(c.getBlob(2), Base64.NO_WRAP))
+                    .put("status", if (c.isNull(3)) JSONObject.NULL else c.getString(3)).put("client_ref", if (c.isNull(4)) JSONObject.NULL else c.getString(4))
+                    .put("parts", JSONArray(listOf(c.getInt(5), c.getInt(6), c.getInt(7), c.getInt(8)))))
+            }
+        }
+
+    /** A restored vault: its wrapped keys and its sealed rows, replacing whatever was here (a debug test key). */
+    @Synchronized internal fun importAll(context: Context, meta: Meta, rows: JSONArray) {
+        val db = db(context)
+        db.beginTransaction()
+        try {
+            db.delete("vault_messages", null, null)
+            db.delete("vault_meta", null, null)
+            db.insertOrThrow("vault_meta", null, ContentValues().apply {
+                val m = meta.toJson()
+                put("id", 1); put("public_key", m.getString("public_key")); put("test_key", 0); put("created_at", clock())
+                put("kdf_salt", m.getString("kdf_salt")); put("kdf_ops", meta.ops); put("kdf_mem", meta.mem)
+                put("sk_by_pass", m.getString("sk_by_pass")); put("sk_by_recovery", m.getString("sk_by_recovery"))
+            })
+            for (i in 0 until rows.length()) {
+                val r = rows.getJSONObject(i)
+                val parts = r.getJSONArray("parts")
+                db.insertOrThrow("vault_messages", null, ContentValues().apply {
+                    put("id", r.getString("id")); put("ts", r.getLong("ts"))
+                    put("ciphertext", Base64.decode(r.getString("ciphertext"), Base64.NO_WRAP))
+                    if (!r.isNull("status")) put("status", r.getString("status"))
+                    if (!r.isNull("client_ref")) put("client_ref", r.getString("client_ref"))
+                    put("parts_total", parts.getInt(0)); put("parts_sent", parts.getInt(1)); put("parts_delivered", parts.getInt(2)); put("parts_failed", parts.getInt(3))
+                })
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        lock()
+    }
 
     private fun meta(context: Context): Meta? =
         db(context).rawQuery("SELECT public_key, kdf_salt, kdf_ops, kdf_mem, sk_by_pass, sk_by_recovery FROM vault_meta WHERE id = 1 AND sk_by_pass IS NOT NULL", null).use { c ->

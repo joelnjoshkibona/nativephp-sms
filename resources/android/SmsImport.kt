@@ -123,6 +123,7 @@ object SmsImport {
         SmsDb.write(context) { db ->
             SmsDb.setSetting(db, Keys.STATE, "done")
             SmsDb.setSetting(db, Keys.FINISHED_AT, System.currentTimeMillis().toString())
+            Backup.applyThreadPrefs(db) // a restored backup's pinned, muted, folders, now that the conversations exist
         }
         if (ContactSync.canRead(context)) runCatching { ContactSync.sync(context) } // names for the conversations just made
         EventJournal.append(
@@ -159,7 +160,10 @@ object SmsImport {
             }
             if (page.size < BATCH) break
         }
-        if (added > 0) EventJournal.append(context, "import_caught_up", JSONObject().put("added", added))
+        if (added > 0) {
+            SmsDb.write(context) { Backup.applyThreadPrefs(it) }
+            EventJournal.append(context, "import_caught_up", JSONObject().put("added", added))
+        }
         return added
     }
 

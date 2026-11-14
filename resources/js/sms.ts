@@ -114,6 +114,33 @@ export interface VaultRule {
     pattern: string
 }
 
+/** The file picker's outcome for a backup, the readable export or a restore (no time limit: the person may browse). */
+export interface DocumentResult {
+    ok: boolean
+    mode: 'backup' | 'readable' | 'open'
+    /** cancelled, no_vault, not_a_backup, no_picker, or the failure's class */
+    reason?: string
+    name?: string
+    bytes?: number
+    /** readable: how many messages */
+    count?: number
+    /** open: when the backup was made */
+    created_at?: number
+    app_version?: string
+}
+
+function pickDocument(fn: string): Promise<DocumentResult> {
+    listen()
+    const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    return new Promise<DocumentResult>((resolve, reject) => {
+        pendingDocs.set(id, { resolve })
+        bridgeCall(fn, { id }).catch((err) => {
+            pendingDocs.delete(id)
+            reject(err)
+        })
+    })
+}
+
 export interface SmsImportStatus {
     /** none: never started; interrupted: started and the app was killed (StartImport carries on) */
     state: 'none' | 'running' | 'interrupted' | 'done'
@@ -170,6 +197,7 @@ async function bridgeCall<T>(method: string, params: Record<string, unknown> = {
 }
 
 const pendingRole = new Map<string, { resolve: (r: DefaultSmsResult) => void; timer: ReturnType<typeof setTimeout> }>()
+const pendingDocs = new Map<string, { resolve: (r: DocumentResult) => void }>()
 let listening = false
 
 function listen() {
@@ -177,10 +205,19 @@ function listen() {
     listening = true
     document.addEventListener('native-event', (e: Event) => {
         const detail = (e as CustomEvent).detail
-        if (!detail?.event || !String(detail.event).endsWith('Events\\DefaultSmsResult')) return
+        const name = String(detail?.event ?? '')
+        const isDoc = name.endsWith('Events\\DocumentResult')
+        if (!isDoc && !name.endsWith('Events\\DefaultSmsResult')) return
         let payload = detail.payload
         if (typeof payload === 'string') {
             try { payload = JSON.parse(payload) } catch { return }
+        }
+        if (isDoc) {
+            const doc = payload?.id ? pendingDocs.get(payload.id) : undefined
+            if (!doc) return
+            pendingDocs.delete(payload.id)
+            doc.resolve(payload as DocumentResult)
+            return
         }
         const id = payload?.id as string | undefined
         const pending = id ? pendingRole.get(id) : undefined
@@ -251,6 +288,17 @@ export const sms = {
 
     /** The conversation a tapped notification asked to open, once ('' when none). */
     takePendingOpen: () => bridgeCall<{ thread: string }>('Sms.TakePendingOpen'),
+
+    // -- backup and export (2.1) ----------------------------------------------------------------------------------------
+
+    /** Save a sealed backup file where the person picks (needs a vault: NO_VAULT otherwise). */
+    exportBackup: () => pickDocument('Sms.BackupExport'),
+    /** Save the normal texts as a readable zip (messages.json, messages.txt); never the vault. */
+    exportReadable: () => pickDocument('Sms.ExportReadable'),
+    /** Pick a backup file; its date arrives in the result. Then restoreBackup with the passphrase or recovery key. */
+    pickBackup: () => pickDocument('Sms.BackupPick'),
+    restoreBackup: (typed: string) => bridgeCall<{ vault_rows: number; rules: number; settings: number; conversations: number }>('Sms.BackupRestore', { typed }),
+    backupState: () => bridgeCall<{ vault: boolean; last_file_at: number }>('Sms.BackupState'),
 
     // -- the vault (1.3) ------------------------------------------------------------------------------------------------
 
