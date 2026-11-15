@@ -308,8 +308,8 @@ class SyncTest : DbTestBase() {
         assertEquals(listOf("out", "queued", "web-ref-0001"), row)
 
         // it comes back to the browser with its reference
-        val changes = ask(JSONObject().put("v", 1).put("t", "pull").put("after", 0))
-        assertTrue(changes.getJSONArray("messages").toString().contains("web-ref-0001"))
+        val page = ask(JSONObject().put("v", 1).put("t", "fetch").put("thread", thread))
+        assertTrue(page.getJSONArray("messages").toString().contains("web-ref-0001"))
 
         // the answer was lost and the browser asks again: nothing more goes out
         assertTrue(ask(frame).getBoolean("duplicate"))
