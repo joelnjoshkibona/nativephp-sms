@@ -205,21 +205,6 @@ export interface PairedBrowser {
     last_seen: number
 }
 
-const SCANNED = 'Native\\Mobile\\Events\\Scanner\\CodeScanned'
-const pendingScans = new Map<string, (text: string | null) => void>()
-
-function scanCode(prompt: string): Promise<string | null> {
-    listen()
-    const id = `scan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    return new Promise<string | null>((resolve, reject) => {
-        pendingScans.set(id, resolve)
-        bridgeCall('Scanner.Scan', { prompt, continuous: false, formats: ['qr'], id, event: SCANNED }).catch((err) => {
-            pendingScans.delete(id)
-            reject(err)
-        })
-    })
-}
-
 const pendingRole = new Map<string, { resolve: (r: DefaultSmsResult) => void; timer: ReturnType<typeof setTimeout> }>()
 const pendingDocs = new Map<string, { resolve: (r: DocumentResult) => void }>()
 let listening = false
@@ -231,20 +216,10 @@ function listen() {
         const detail = (e as CustomEvent).detail
         const name = String(detail?.event ?? '')
         const isDoc = name.endsWith('Events\\DocumentResult')
-        const isScan = name.endsWith('Scanner\\CodeScanned') || name.endsWith('Scanner\\ScannerCancelled')
-        if (!isDoc && !isScan && !name.endsWith('Events\\DefaultSmsResult')) return
+        if (!isDoc && !name.endsWith('Events\\DefaultSmsResult')) return
         let payload = detail.payload
         if (typeof payload === 'string') {
             try { payload = JSON.parse(payload) } catch { return }
-        }
-        if (isScan) {
-            // the id comes back on the event; without one, the only scan waiting is this one
-            const id = (payload?.id as string | undefined) ?? [...pendingScans.keys()][0]
-            const done = id ? pendingScans.get(id) : undefined
-            if (!done) return
-            pendingScans.delete(id as string)
-            done(name.endsWith('CodeScanned') ? String(payload?.data ?? '') : null)
-            return
         }
         if (isDoc) {
             const doc = payload?.id ? pendingDocs.get(payload.id) : undefined
@@ -344,8 +319,6 @@ export const sms = {
     relayBrowsers: () => bridgeCall<{ browsers: PairedBrowser[]; state: 'off' | 'connecting' | 'connected'; server: string }>('Sms.RelayBrowsers'),
     relayUnpair: (id: string) => bridgeCall<{ removed: string }>('Sms.RelayUnpair', { id }),
     relaySelfTest: () => bridgeCall<{ ok: boolean; failed: string }>('Sms.RelaySelfTest'),
-    /** Opens the camera for a QR code: its text, or null when the scanner was closed. */
-    scanCode: (prompt: string) => scanCode(prompt),
 
     // -- the vault (1.3) ------------------------------------------------------------------------------------------------
 
