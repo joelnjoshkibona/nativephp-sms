@@ -793,4 +793,65 @@ object SmsFunctions {
             }
         }
     }
+
+    // -- paired browsers (2.4): pair by QR, list, remove ----------------------------------------------------------------
+
+    /** Network work off the calling thread (the bridge may call on the main one), waited for here. */
+    private fun <T> offMain(block: () -> T): T = java.util.concurrent.Executors.newSingleThreadExecutor().let { ex ->
+        try { ex.submit<T> { block() }.get(45, java.util.concurrent.TimeUnit.SECONDS) } finally { ex.shutdown() }
+    }
+
+    private fun browserMap(b: RelayLink.Browser): Map<String, Any> =
+        mapOf("id" to b.id, "name" to b.name, "paired_at" to b.pairedAt, "last_seen" to (b.lastSeen ?: 0L))
+
+    /** Sms.RelayPair {code}: the scanned QR code. BAD_CODE, EXPIRED (the code was used or is too old), OTHER_ACCOUNT, MISMATCH, OFFLINE. */
+    class RelayPair(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val code = parameters["code"] as? String ?: return BridgeResponse.error("BAD_CODE", "No code")
+            return try {
+                val b = offMain { RelayLink.pair(context, code) }
+                SyncAgent.restart(context)
+                BridgeResponse.success(browserMap(b))
+            } catch (e: java.util.concurrent.ExecutionException) {
+                when (val cause = e.cause) {
+                    is RelayLink.BadCode -> BridgeResponse.error("BAD_CODE", cause.message ?: "")
+                    is RelayLink.KeyMismatch -> BridgeResponse.error("MISMATCH", cause.message ?: "")
+                    is RelayHttp.Failed -> BridgeResponse.error(
+                        if (cause.status == 422 && (cause.message ?: "").contains("another account")) "OTHER_ACCOUNT" else if (cause.status == 422) "EXPIRED" else "RELAY_${cause.status}",
+                        cause.message ?: "",
+                    )
+                    is java.io.IOException -> BridgeResponse.error("OFFLINE", "Could not reach the server.")
+                    else -> { Log.e(TAG, "pair failed", cause); BridgeResponse.error("PAIR_FAILED", cause?.javaClass?.simpleName ?: "") }
+                }
+            } catch (e: java.util.concurrent.TimeoutException) {
+                BridgeResponse.error("OFFLINE", "The server did not answer.")
+            }
+        }
+    }
+
+    /** Sms.RelayBrowsers: the paired browsers and the connection's state (off, connecting, connected). */
+    class RelayBrowsers(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            SyncAgent.start(context)
+            return BridgeResponse.success(mapOf("browsers" to RelayLink.browsers(context).map { browserMap(it) }, "state" to SyncAgent.state(), "server" to (RelayLink.identity(context)?.url ?: "")))
+        }
+    }
+
+    /** Sms.RelayUnpair {id}: removes a browser here and on the relay; the browser wipes what it holds. */
+    class RelayUnpair(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val id = parameters["id"] as? String ?: return BridgeResponse.error("NOT_FOUND", "No id")
+            runCatching { offMain { RelayLink.unpair(context, id) } }.onFailure { RelayLink.forget(context, id) }
+            SyncAgent.restart(context)
+            return BridgeResponse.success(mapOf("removed" to id))
+        }
+    }
+
+    /** Sms.RelaySelfTest: the phone's libsodium against the browser's test vectors. */
+    class RelaySelfTest(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val failed = SodiumSync.selfTest()
+            return BridgeResponse.success(mapOf("ok" to failed.isEmpty(), "failed" to failed.joinToString(", ")))
+        }
+    }
 }

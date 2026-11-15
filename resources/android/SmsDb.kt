@@ -242,5 +242,12 @@ object SmsDb {
         ALTER TABLE messages ADD COLUMN delivered_at INTEGER;
         ALTER TABLE messages ADD COLUMN smsc_at INTEGER;
         """.trimIndent(),
+        // 5: a paired browser's session keys (each wrapped under this phone's Keystore key) and the last change_log seq
+        //    pushed to it unasked
+        """
+        ALTER TABLE paired_devices ADD COLUMN rx_key TEXT;
+        ALTER TABLE paired_devices ADD COLUMN tx_key TEXT;
+        ALTER TABLE paired_devices ADD COLUMN push_seq INTEGER NOT NULL DEFAULT 0;
+        """.trimIndent(),
     )
 }

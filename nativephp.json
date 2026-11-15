@@ -532,6 +532,38 @@
                 "activity"
             ],
             "description": "Open the app's notification settings, auto-start screen or Android settings page"
+        },
+        {
+            "name": "Sms.RelayPair",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.RelayPair",
+            "android_params": [
+                "context"
+            ],
+            "description": "Pair with a browser from its scanned QR code"
+        },
+        {
+            "name": "Sms.RelayBrowsers",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.RelayBrowsers",
+            "android_params": [
+                "context"
+            ],
+            "description": "The paired browsers and the relay connection state"
+        },
+        {
+            "name": "Sms.RelayUnpair",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.RelayUnpair",
+            "android_params": [
+                "context"
+            ],
+            "description": "Remove a paired browser here and on the relay"
+        },
+        {
+            "name": "Sms.RelaySelfTest",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.RelaySelfTest",
+            "android_params": [
+                "context"
+            ],
+            "description": "Check the sync crypto against the browser test vectors"
         }
     ],
     "events": [
@@ -563,7 +595,8 @@
         "dependencies": {
             "implementation": [
                 "com.goterl:lazysodium-android:5.1.0@aar",
-                "net.java.dev.jna:jna:5.14.0@aar"
+                "net.java.dev.jna:jna:5.14.0@aar",
+                "com.squareup.okhttp3:okhttp:4.12.0"
             ]
         },
         "activities": [

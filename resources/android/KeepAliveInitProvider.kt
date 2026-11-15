@@ -12,7 +12,11 @@ import android.net.Uri
  */
 class KeepAliveInitProvider : ContentProvider() {
     override fun onCreate(): Boolean {
-        context?.let { KeepAliveService.startIfEnabled(it) }
+        context?.let {
+            KeepAliveService.startIfEnabled(it)
+            // answer paired browsers whenever the process runs
+            SyncAgent.start(it)
+        }
         return true
     }
 

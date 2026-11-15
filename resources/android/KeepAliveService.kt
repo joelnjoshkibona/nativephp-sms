@@ -66,6 +66,7 @@ class KeepAliveService : Service() {
             val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING else 0
             ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(), type)
             running = true
+            SyncAgent.start(this)
             START_STICKY
         } catch (e: Exception) {
             Log.e(TAG, "startForeground failed", e)

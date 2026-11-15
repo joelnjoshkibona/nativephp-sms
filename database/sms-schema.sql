@@ -1,4 +1,4 @@
--- sms.sqlite, schema version 4. Written by SmsDbTest from SmsDb.MIGRATIONS; do not edit.
+-- sms.sqlite, schema version 5. Written by SmsDbTest from SmsDb.MIGRATIONS; do not edit.
 
 CREATE TABLE attachments (
     id TEXT PRIMARY KEY,
@@ -73,7 +73,7 @@ CREATE TABLE paired_devices (
     paired_at INTEGER NOT NULL,
     web_access_enabled INTEGER NOT NULL DEFAULT 1,
     last_seen INTEGER
-);
+, rx_key TEXT, tx_key TEXT, push_seq INTEGER NOT NULL DEFAULT 0);
 
 CREATE TABLE scheduled (
     id TEXT PRIMARY KEY,
