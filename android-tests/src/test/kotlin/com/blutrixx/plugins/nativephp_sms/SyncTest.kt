@@ -289,4 +289,48 @@ class SyncTest : DbTestBase() {
         assertNull(RelayLink.identity(context))
         assertThrows(RelayLink.BadCode::class.java) { RelayLink.pairByCode(context, "https://relay.test", "K7Q2", "Test phone") }
     }
+
+    // -- sending and reading from the browser (2.5) --------------------------------------------------------------------
+
+    @Test fun aBrowserSendsATextOnceEvenWhenItAsksTwice() {
+        receive("+255700000001", "hello", 1_800_000_000_000L)
+        RelayLink.pair(context, code(), "Test phone")
+        val thread = SmsDb.get(context).rawQuery("SELECT id FROM threads", null).use { it.moveToFirst(); it.getString(0) }
+        val frame = JSONObject().put("v", 1).put("t", "send").put("to", "+255700000001").put("body", "from the browser").put("client_ref", "web-ref-0001").put("thread", thread).put("id", "s1")
+
+        val answer = ask(frame)
+        assertEquals("sent", answer.getString("t"))
+        assertEquals("s1", answer.getString("id"))
+        assertEquals(thread, answer.getString("thread"))
+        assertFalse(answer.getBoolean("duplicate"))
+        assertEquals(listOf("+255700000001" to listOf("from the browser")), DbTestBase.TestRadio.sent)
+        val row = SmsDb.get(context).rawQuery("SELECT direction, status, client_ref FROM messages WHERE body = 'from the browser'", null).use { it.moveToFirst(); listOf(it.getString(0), it.getString(1), it.getString(2)) }
+        assertEquals(listOf("out", "queued", "web-ref-0001"), row)
+
+        // it comes back to the browser with its reference
+        val page = ask(JSONObject().put("v", 1).put("t", "fetch").put("thread", thread))
+        assertTrue(page.getJSONArray("messages").toString().contains("web-ref-0001"))
+
+        // the answer was lost and the browser asks again: nothing more goes out
+        assertTrue(ask(frame).getBoolean("duplicate"))
+        assertEquals(1, DbTestBase.TestRadio.sent.size)
+    }
+
+    @Test fun aBrowserCannotSendNothingOrTooMuch() {
+        RelayLink.pair(context, code(), "Test phone")
+        for (body in listOf("", "   ", "x".repeat(SyncAgent.MAX_BODY + 1))) {
+            val answer = ask(JSONObject().put("v", 1).put("t", "send").put("to", "+255700000001").put("body", body).put("client_ref", "web-ref-0002"))
+            assertEquals("error", answer.getString("t"))
+        }
+        assertTrue(DbTestBase.TestRadio.sent.isEmpty())
+    }
+
+    @Test fun openingAConversationInTheBrowserMarksItRead() {
+        receive("+255700000001", "unread one", 1_800_000_000_000L)
+        RelayLink.pair(context, code(), "Test phone")
+        val thread = SmsDb.get(context).rawQuery("SELECT id, unread FROM threads", null).use { it.moveToFirst(); assertEquals(1, it.getInt(1)); it.getString(0) }
+
+        assertEquals("ok", ask(JSONObject().put("v", 1).put("t", "read").put("thread", thread)).getString("t"))
+        assertEquals(0, SmsDb.get(context).rawQuery("SELECT unread FROM threads", null).use { it.moveToFirst(); it.getInt(0) })
+    }
 }

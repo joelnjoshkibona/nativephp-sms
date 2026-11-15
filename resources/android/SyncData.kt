@@ -19,7 +19,7 @@ object SyncData {
     const val MESSAGES_PAGE = 50
 
     private const val THREAD_COLS = "id, addresses, folder, last_message_at, unread, pinned, muted, color"
-    private const val MESSAGE_COLS = "id, thread_id, direction, address, body, ts, status, kind, sim_slot, read"
+    private const val MESSAGE_COLS = "id, thread_id, direction, address, body, ts, status, kind, sim_slot, read, client_ref"
 
     fun seq(context: Context): Long =
         SmsDb.get(context).rawQuery("SELECT COALESCE(MAX(seq), 0) FROM change_log", null).use { it.moveToFirst(); it.getLong(0) }
@@ -101,6 +101,8 @@ object SyncData {
         .put("id", c.getString(0)).put("thread_id", c.getString(1)).put("direction", c.getString(2)).put("address", c.getString(3))
         .put("body", c.getString(4)).put("ts", c.getLong(5)).put("status", c.getString(6)).put("kind", c.getString(7))
         .put("sim_slot", if (c.isNull(8)) JSONObject.NULL else c.getInt(8)).put("read", c.getInt(9) == 1)
+        // a text sent from a browser comes back with the browser's own reference, so its "Sending" bubble can go
+        .put("client_ref", if (c.isNull(10)) JSONObject.NULL else c.getString(10))
 
     private fun rows(context: Context, sql: String, args: List<String>, map: (Cursor) -> JSONObject): JSONArray {
         if (sql.contains("IN ()")) return JSONArray()

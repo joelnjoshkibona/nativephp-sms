@@ -167,6 +167,8 @@ object SyncAgent {
         for ((_, from, blob) in mine) {
             for ((to, reply) in handle(ctx, from, blob)) send(ctx, me, to, reply)
         }
+        // a send or a read changed sms.sqlite: the browsers hear of it now rather than at the next watch
+        if (mine.isNotEmpty()) pushChanges(ctx)
         if (mine.isNotEmpty()) runCatching { RelayHttp.current.call(me.url, "POST", "/relay/messages/ack", JSONObject().put("ids", JSONArray(mine.map { it.first })), me.token) }
     }
 
@@ -244,6 +246,11 @@ object SyncAgent {
                         if (!out.optBoolean("more")) RelayLink.setPushSeq(ctx, from, out.getLong("seq"))
                     }
                 }
+                "send" -> sendFromBrowser(ctx, from, frame)
+                "read" -> {
+                    StoreWrites.saveThread(ctx, frame.getString("thread"), mapOf("read" to true))
+                    JSONObject().put("v", 1).put("t", "ok")
+                }
                 "fetch" -> SyncData.page(ctx, frame.getString("thread"), if (frame.has("before") && !frame.isNull("before")) frame.getLong("before") else null, frame.optInt("limit", SyncData.MESSAGES_PAGE))
                 else -> JSONObject().put("v", 1).put("t", "error").put("code", "unknown").put("message", "This phone does not know that request.")
             }
@@ -253,5 +260,33 @@ object SyncAgent {
         }
         if (frame.has("id")) reply.put("id", frame.get("id"))
         return listOf(from to crypto.seal(browser.tx, reply.toString(), SyncCrypto.ad(me.deviceId, from)))
+    }
+
+    /** The longest text a browser may send (the app's own composer has no lower limit; this keeps a frame small). */
+    const val MAX_BODY = 5_000
+
+    /**
+     * `send {to, body, client_ref, thread?, sub_id?}`: sent exactly as the app sends (SmsSender: the system store when
+     * default, a private number's sealed copy, the status callbacks); its states reach the browser as changes. The SIM is
+     * the one asked for, else the conversation's last, else the phone's default. A client_ref already used answers with
+     * the first message and sends nothing (a browser that retries after a lost answer does not send twice).
+     */
+    private fun sendFromBrowser(ctx: Context, from: String, frame: JSONObject): JSONObject {
+        val to = frame.optString("to").trim()
+        val body = frame.optString("body")
+        val ref = frame.optString("client_ref")
+        if (to.isEmpty() || body.isBlank() || body.length > MAX_BODY || ref.length !in 8..64) {
+            return JSONObject().put("v", 1).put("t", "error").put("code", "invalid").put("message", "The phone could not send that.")
+        }
+        val thread = frame.optString("thread").takeIf { it.isNotEmpty() && it != "null" }
+        val sub = when {
+            frame.has("sub_id") && !frame.isNull("sub_id") -> frame.getInt("sub_id")
+            thread != null -> SmsDb.get(ctx).rawQuery("SELECT sub_id FROM messages WHERE thread_id = ? AND sub_id IS NOT NULL ORDER BY ts DESC LIMIT 1", arrayOf(thread)).use { if (it.moveToFirst()) it.getInt(0) else -1 }
+            else -> -1
+        }
+        val r = SmsSender.send(ctx, to, body, ref, sub)
+        EventJournal.append(ctx, "send_from_browser", JSONObject().put("browser", from.takeLast(4)).put("parts", r.parts).put("duplicate", r.duplicate))
+        return JSONObject().put("v", 1).put("t", "sent").put("client_ref", ref).put("message_id", r.messageId ?: JSONObject.NULL)
+            .put("thread", r.storeThreadId ?: JSONObject.NULL).put("duplicate", r.duplicate)
     }
 }
