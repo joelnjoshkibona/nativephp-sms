@@ -26,7 +26,10 @@ class OpenThreadActivity : Activity() {
         try {
             incoming?.getStringExtra(SmsNotifier.EXTRA_THREAD)?.let { SmsPrefs.setPendingOpen(applicationContext, it) }
             packageManager.getLaunchIntentForPackage(packageName)?.let { launch ->
-                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                // CLEAR_TOP: bring the running app forward (this activity sits above it, so SINGLE_TOP alone made a second
+                // MainActivity, which started PHP again under the running queue worker and crashed it: SIGSEGV in
+                // native_worker_artisan). The app reads what was asked on its return to the front (pending.ts).
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 startActivity(launch)
             }
         } catch (e: Exception) {
