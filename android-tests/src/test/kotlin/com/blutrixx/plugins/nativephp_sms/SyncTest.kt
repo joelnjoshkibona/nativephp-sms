@@ -35,6 +35,8 @@ class SyncTest : DbTestBase() {
             val c = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES")); updateAAD(ad.toByteArray()) }
             return Base64.encodeToString(c.iv + c.doFinal(plaintext.toByteArray()), Base64.NO_WRAP)
         }
+        override fun hash(label: String, vararg parts: ByteArray) = sha(label.toByteArray(), *parts)
+        override fun random(n: Int) = ByteArray(n).also { java.security.SecureRandom().nextBytes(it) }
         override fun open(key: ByteArray, blob: String, ad: String): String? = runCatching {
             val raw = Base64.decode(blob, Base64.NO_WRAP)
             val c = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, raw, 0, 12)); updateAAD(ad.toByteArray()) }
@@ -42,16 +44,31 @@ class SyncTest : DbTestBase() {
         }.getOrNull()
     }
 
-    /** The relay: answers a claim with this browser, and remembers calls. */
+    /** The relay: answers a claim with this browser, and remembers calls. With `browserNonce`, plays the browser's part of a typed-code pairing. */
     class FakeRelay(var webKey: ByteArray) : RelayHttp {
         val calls = mutableListOf<Triple<String, String, String?>>()
         var phoneToken = "phone-token-1"
+        var browserNonce: ByteArray? = null
+        val fromPhone = mutableListOf<JSONObject>()
         override fun call(url: String, method: String, path: String, body: JSONObject?, token: String?): JSONObject {
             calls += Triple(path, body?.toString() ?: "", token)
+            if (method == "POST" && path == "/relay/messages") {
+                body!!.getString("blob").takeIf { it.startsWith("pair:") }?.let { fromPhone += JSONObject(it.removePrefix("pair:")) }
+                return JSONObject().put("id", 1)
+            }
+            if (method == "GET" && path.startsWith("/relay/messages")) {
+                val n = browserNonce
+                val list = JSONArray()
+                if (n != null && fromPhone.any { it.getString("t") == "commit" }) {
+                    list.put(JSONObject().put("id", 7).put("from", WEB).put("blob", "pair:" + JSONObject().put("t", "nonce").put("n", Base64.encodeToString(n, Base64.NO_WRAP))))
+                }
+                return JSONObject().put("messages", list)
+            }
             return when (path) {
                 "/relay/pairings/claim" -> JSONObject()
                     .put("device", JSONObject().put("id", PHONE))
                     .put("token", if (token != null) JSONObject.NULL else phoneToken)
+                    .put("key", "appkey-from-server")
                     .put("peer", JSONObject().put("id", WEB).put("name", "Firefox on Linux").put("public_key", Base64.encodeToString(webKey, Base64.NO_WRAP)))
                 else -> JSONObject()
             }
@@ -227,5 +244,49 @@ class SyncTest : DbTestBase() {
         assertTrue(SyncAgent.handle(context, WEB, TestSync.seal(ByteArray(32), frame, SyncCrypto.ad(WEB, PHONE))).isEmpty())
         assertTrue(SyncAgent.handle(context, "01OTHER0000000000000000000", TestSync.seal(webTx, frame, SyncCrypto.ad("01OTHER0000000000000000000", PHONE))).isEmpty())
         assertNotNull(RelayLink.browser(context, WEB))
+    }
+
+    // -- a typed code -------------------------------------------------------------------------------------------------
+
+    @Test fun aTypedCodePairsAfterTheDigitsAreConfirmed() {
+        val na = ByteArray(16) { 3 }
+        relay.browserNonce = na
+
+        val pending = RelayLink.pairByCode(context, "https://relay.test", "k7q2 9xmf", "Test phone", pollMs = 1)
+
+        // the browser's side: the commitment it got opens to the nonce revealed after its own
+        val commit = Base64.decode(relay.fromPhone.first { it.getString("t") == "commit" }.getString("c"), Base64.NO_WRAP)
+        val nb = Base64.decode(relay.fromPhone.first { it.getString("t") == "reveal" }.getString("n"), Base64.NO_WRAP)
+        val phonePk = Base64.decode(SmsDb.setting(context, "relay.pk")!!, Base64.NO_WRAP)
+        assertTrue(PairCode.commitment(TestSync, phonePk, webPk, nb).contentEquals(commit))
+        assertEquals(PairCode.digits(TestSync, phonePk, webPk, na, nb), pending.digits)
+        assertEquals(6, pending.digits.length)
+        assertEquals("appkey-from-server", RelayLink.identity(context)!!.appKey)
+        // the claim sent the normalised code, and the commitment went before the browser's nonce was read
+        assertTrue(relay.calls.first().second.contains("\"token\":\"K7Q29XMF\""))
+
+        // pending: not answered until confirmed
+        assertTrue(RelayLink.browsers(context).isEmpty())
+        assertTrue(RelayLink.confirm(context, WEB, true))
+        val b = RelayLink.browser(context, WEB)!!
+
+        // the keys are the ones the browser works out from the nonces and the code
+        val secret = PairCode.secret(TestSync, na, nb, "K7Q2-9XMF")
+        assertTrue(TestSync.sessionKeys(phonePk, ByteArray(0), webPk, secret).first.contentEquals(b.rx))
+    }
+
+    @Test fun digitsThatDoNotMatchRemoveTheBrowser() {
+        relay.browserNonce = ByteArray(16) { 3 }
+        RelayLink.pairByCode(context, "https://relay.test", "K7Q2-9XMF", "Test phone", pollMs = 1)
+
+        assertFalse(RelayLink.confirm(context, WEB, false))
+        assertEquals("/relay/devices/$WEB/revoke", relay.calls.last().first)
+        assertNull(RelayLink.identity(context))
+    }
+
+    @Test fun aBrowserThatNeverAnswersLeavesNothingBehind() {
+        assertThrows(RelayLink.NoAnswer::class.java) { RelayLink.pairByCode(context, "https://relay.test", "K7Q2-9XMF", "Test phone", waitMs = 20, pollMs = 5) }
+        assertNull(RelayLink.identity(context))
+        assertThrows(RelayLink.BadCode::class.java) { RelayLink.pairByCode(context, "https://relay.test", "K7Q2", "Test phone") }
     }
 }

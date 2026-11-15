@@ -162,10 +162,23 @@ object SyncAgent {
 
     private fun receive(ctx: Context, batch: List<Triple<Long, String, String>>) {
         val me = RelayLink.identity(ctx) ?: return
-        for ((_, from, blob) in batch) {
+        // a typed-code pairing reads its own frames (RelayLink.pairByCode): left on the relay for it
+        val mine = batch.filterNot { RelayLink.isPairFrame(it.third) }
+        for ((_, from, blob) in mine) {
             for ((to, reply) in handle(ctx, from, blob)) send(ctx, me, to, reply)
         }
-        runCatching { RelayHttp.current.call(me.url, "POST", "/relay/messages/ack", JSONObject().put("ids", JSONArray(batch.map { it.first })), me.token) }
+        if (mine.isNotEmpty()) runCatching { RelayHttp.current.call(me.url, "POST", "/relay/messages/ack", JSONObject().put("ids", JSONArray(mine.map { it.first })), me.token) }
+    }
+
+    /** After a typed-code pairing is confirmed: say hello, so the browser knows the digits matched and pulls. */
+    fun greet(context: Context, id: String) {
+        val ctx = context.applicationContext
+        worker.execute {
+            val me = RelayLink.identity(ctx) ?: return@execute
+            val b = RelayLink.browser(ctx, id) ?: return@execute
+            val hello = JSONObject().put("v", 1).put("t", "hello").put("name", RelayLink.deviceName()).put("seq", SyncData.seq(ctx))
+            send(ctx, me, id, SyncCrypto.current.seal(b.tx, hello.toString(), SyncCrypto.ad(me.deviceId, id)))
+        }
     }
 
     private fun send(ctx: Context, me: RelayLink.Identity, to: String, blob: String) {

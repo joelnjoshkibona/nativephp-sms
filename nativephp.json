@@ -564,6 +564,22 @@
                 "context"
             ],
             "description": "Check the sync crypto against the browser test vectors"
+        },
+        {
+            "name": "Sms.RelayPairCode",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.RelayPairCode",
+            "android_params": [
+                "context"
+            ],
+            "description": "Pair with a browser by the short code typed from its screen; answers the digits to compare"
+        },
+        {
+            "name": "Sms.RelayConfirm",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.RelayConfirm",
+            "android_params": [
+                "context"
+            ],
+            "description": "Confirm (or refuse) the digits of a typed-code pairing"
         }
     ],
     "events": [

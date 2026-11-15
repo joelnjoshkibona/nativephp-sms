@@ -337,6 +337,10 @@ export const sms = {
     // -- paired browsers (2.4) --
     /** Pairs with the browser whose QR code was scanned. Errors: BAD_CODE, EXPIRED, OTHER_ACCOUNT, MISMATCH, OFFLINE. */
     relayPair: (code: string) => bridgeCall<PairedBrowser>('Sms.RelayPair', { code }),
+    /** Pairs by the short code typed from the browser's screen: answers the six digits to compare on both screens. */
+    relayPairCode: (server: string, code: string) => bridgeCall<{ id: string; name: string; digits: string }>('Sms.RelayPairCode', { server, code }),
+    /** The digits matched (pairs) or not (removes the browser). */
+    relayConfirm: (id: string, match: boolean) => bridgeCall<{ paired: boolean }>('Sms.RelayConfirm', { id, match }),
     relayBrowsers: () => bridgeCall<{ browsers: PairedBrowser[]; state: 'off' | 'connecting' | 'connected'; server: string }>('Sms.RelayBrowsers'),
     relayUnpair: (id: string) => bridgeCall<{ removed: string }>('Sms.RelayUnpair', { id }),
     relaySelfTest: () => bridgeCall<{ ok: boolean; failed: string }>('Sms.RelaySelfTest'),
