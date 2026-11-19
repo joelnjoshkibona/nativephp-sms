@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- A tapped notification opens its conversation every time. `OpenThreadActivity` now runs in a task of its own
+  (`launchMode` `singleInstance`). Before, a tap while the app was closed put it at the base of the app's task, and every
+  later tap matched that task, so Android only brought the app forward and the conversation did not open.
+
 ## Unreleased: the everyday app (Phase 1, milestone 1.2)
 
 - Names for numbers: `SyncContacts` fills `contact_cache` from the phone's contacts (also when the import ends).

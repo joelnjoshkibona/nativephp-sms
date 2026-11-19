@@ -662,6 +662,7 @@
             {
                 "name": ".OpenThreadActivity",
                 "exported": false,
+                "launchMode": "singleInstance",
                 "theme": "@android:style/Theme.Translucent.NoTitleBar"
             }
         ],
