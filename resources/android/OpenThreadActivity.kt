@@ -8,6 +8,10 @@ import android.util.Log
 /**
  * A tapped message notification: records which conversation to open (SmsPrefs, read by the app with Sms.TakePendingOpen)
  * and brings the app to the front. A transparent trampoline like ComposeActivity, with no screen of its own.
+ *
+ * It runs in a task of its own (launchMode singleInstance in nativephp.json), never in the app's. A tap while the app was
+ * closed used to start the app's task with this activity at its base; every later tap then matched that task, so Android
+ * only brought the app forward and never ran this activity: the conversation did not open (the app stayed where it was).
  */
 class OpenThreadActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
