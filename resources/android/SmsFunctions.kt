@@ -794,6 +794,49 @@ object SmsFunctions {
         }
     }
 
+    /**
+     * Opens the person behind a number in Android's contacts: their contact card when the number is saved, else the "new
+     * contact" screen with the number filled in. `screen` says which: `contact` or `new_contact`. Without READ_CONTACTS
+     * the lookup cannot run, so Android's own "show or create" screen decides.
+     */
+    class OpenContact(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val address = (parameters["address"] as? String)?.trim().orEmpty()
+            if (address.isEmpty()) return BridgeResponse.error("INVALID_ARGUMENT", "address is required")
+            val found: android.net.Uri? = try {
+                val lookup = android.net.Uri.withAppendedPath(android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(address))
+                activity.contentResolver.query(lookup, arrayOf(android.provider.ContactsContract.PhoneLookup._ID, android.provider.ContactsContract.PhoneLookup.LOOKUP_KEY), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) android.provider.ContactsContract.Contacts.getLookupUri(c.getLong(0), c.getString(1)) else null
+                }
+            } catch (e: SecurityException) {
+                return showOrCreate(address)
+            } catch (e: Exception) {
+                null
+            }
+            return try {
+                if (found != null) {
+                    activity.startActivity(Intent(Intent.ACTION_VIEW, found))
+                    BridgeResponse.success(mapOf("launched" to true, "screen" to "contact"))
+                } else {
+                    activity.startActivity(
+                        Intent(Intent.ACTION_INSERT, android.provider.ContactsContract.Contacts.CONTENT_URI)
+                            .putExtra(android.provider.ContactsContract.Intents.Insert.PHONE, address),
+                    )
+                    BridgeResponse.success(mapOf("launched" to true, "screen" to "new_contact"))
+                }
+            } catch (e: Exception) {
+                showOrCreate(address)
+            }
+        }
+
+        private fun showOrCreate(address: String): Map<String, Any> = try {
+            activity.startActivity(Intent(android.provider.ContactsContract.Intents.SHOW_OR_CREATE_CONTACT, android.net.Uri.fromParts("tel", address, null)))
+            BridgeResponse.success(mapOf("launched" to true, "screen" to "show_or_create"))
+        } catch (e: Exception) {
+            BridgeResponse.error("LAUNCH_FAILED", e.message ?: "No contacts app opened")
+        }
+    }
+
     // -- paired browsers (2.4): pair by QR, list, remove ----------------------------------------------------------------
 
     /** Network work off the calling thread (the bridge may call on the main one), waited for here. */

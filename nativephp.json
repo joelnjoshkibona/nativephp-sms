@@ -526,6 +526,14 @@
             "description": "Open Phone Master's auto-start screen on Transsion phones, else the app's settings page"
         },
         {
+            "name": "Sms.OpenContact",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.OpenContact",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Open a number's contact card, or the new-contact screen with the number filled in"
+        },
+        {
             "name": "Sms.OpenSettings",
             "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.OpenSettings",
             "android_params": [

@@ -133,6 +133,12 @@ class Sms
         return $this->call('Sms.OpenSettings', ['page' => $page]);
     }
 
+    /** The number's contact card in Android's contacts, or the new-contact screen with the number filled in. */
+    public function openContact(string $address): array
+    {
+        return $this->call('Sms.OpenContact', ['address' => $address]);
+    }
+
     /** Phone Master's auto-start screen on Transsion phones (Infinix, Tecno, itel), else the app's settings page. */
     public function openAutostartSettings(): array
     {
