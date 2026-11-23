@@ -400,6 +400,10 @@ export const sms = {
     openSettings: (page: 'notifications' | 'autostart' | 'app') =>
         bridgeCall<{ launched: boolean; screen: 'notifications' | 'autostart' | 'app_details' }>('Sms.OpenSettings', { page }),
 
+    /** A number's contact card in Android's contacts, or the new-contact screen with the number filled in. */
+    openContact: (address: string) =>
+        bridgeCall<{ launched: boolean; screen: 'contact' | 'new_contact' | 'show_or_create' }>('Sms.OpenContact', { address }),
+
     /** Phone Master's auto-start screen on Transsion phones, else the app's settings page. */
     openAutostartSettings: () =>
         bridgeCall<{ launched: boolean; screen: 'autostart' | 'app_details' }>('Sms.OpenAutostartSettings'),
