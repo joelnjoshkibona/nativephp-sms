@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `OpenContact`: a number's contact card in Android's contacts, or the new-contact screen with the number filled in
+  when it is not saved (Android's own "show or create" screen without READ_CONTACTS).
 - A tapped notification opens its conversation every time. `OpenThreadActivity` now runs in a task of its own
   (`launchMode` `singleInstance`). Before, a tap while the app was closed put it at the base of the app's task, and every
   later tap matched that task, so Android only brought the app forward and the conversation did not open.
