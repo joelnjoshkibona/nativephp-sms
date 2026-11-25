@@ -103,6 +103,21 @@ class EverydayTest : DbTestBase() {
         assertEquals(0, notifications.size())
     }
 
+    @Test fun aTextWithACodeGetsCopyCodeAndItsTapPutsTheCodeOnTheClipboard() {
+        receive("+255700000012", "Your verification code is 482913.")
+        val shown = notifications.allNotifications.single()
+        val copy = shown.actions.single { it.title == "Copy code" }
+        assertEquals("482913", shadowOf(copy.actionIntent).savedIntent.getStringExtra(SmsNotifier.EXTRA_CODE))
+        NotificationActionReceiver().onReceive(context, shadowOf(copy.actionIntent).savedIntent)
+        assertEquals("482913", context.getSystemService(android.content.ClipboardManager::class.java).primaryClip!!.getItemAt(0).text.toString())
+        assertEquals(1, notifications.size()) // the notification stays
+    }
+
+    @Test fun aTextWithoutACodeHasNoCopyCode() {
+        receive("+255700000013", "See you at 1800 tomorrow")
+        assertTrue(notifications.allNotifications.single().actions.none { it.title == "Copy code" })
+    }
+
     @Test fun aTappedNotificationLeavesTheConversationToOpenOnce() {
         SmsPrefs.setPendingOpen(context, "T1")
         assertEquals("T1", SmsPrefs.takePendingOpen(context))

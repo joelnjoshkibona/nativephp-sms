@@ -9,17 +9,22 @@ import org.json.JSONObject
 import java.util.UUID
 
 /**
- * Reply and Mark as read on a message notification, without opening the app. A reply is sent like any text
+ * Reply, Mark as read and Copy code on a message notification, without opening the app. A reply is sent like any text
  * (SmsSender: its row, one status, the journal) and marks the conversation read, which clears its notification.
  */
 class NotificationActionReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_REPLY = "com.blutrixx.plugins.nativephp_sms.REPLY"
         const val ACTION_MARK_READ = "com.blutrixx.plugins.nativephp_sms.MARK_READ"
+        const val ACTION_COPY_CODE = "com.blutrixx.plugins.nativephp_sms.COPY_CODE"
         private const val TAG = "NativephpSms.Action"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == ACTION_COPY_CODE) {
+            intent.getStringExtra(SmsNotifier.EXTRA_CODE)?.let { copyCode(context.applicationContext, it) }
+            return
+        }
         val threadId = intent.getStringExtra(SmsNotifier.EXTRA_THREAD) ?: return
         val address = intent.getStringExtra(SmsNotifier.EXTRA_ADDRESS) ?: ""
         val text = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(SmsNotifier.REPLY_KEY)?.toString()?.trim().orEmpty()
@@ -32,6 +37,19 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 pending.finish()
             }
         }
+    }
+
+    /**
+     * Copy code: the code on the clipboard, marked sensitive (Android 13+ hides it in its own "Copied" preview, which it
+     * shows itself; before that a short toast says so). The notification stays; nothing is logged.
+     */
+    internal fun copyCode(context: Context, code: String) {
+        val clip = android.content.ClipData.newPlainText("code", code)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            clip.description.extras = android.os.PersistableBundle().apply { putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true) }
+        }
+        context.getSystemService(android.content.ClipboardManager::class.java)?.setPrimaryClip(clip)
+        if (android.os.Build.VERSION.SDK_INT < 33) android.widget.Toast.makeText(context, "Code copied", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     internal fun handle(context: Context, action: String?, threadId: String, address: String, text: String) {

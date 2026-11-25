@@ -789,7 +789,8 @@
                     {
                         "action": [
                             "com.blutrixx.plugins.nativephp_sms.REPLY",
-                            "com.blutrixx.plugins.nativephp_sms.MARK_READ"
+                            "com.blutrixx.plugins.nativephp_sms.MARK_READ",
+                            "com.blutrixx.plugins.nativephp_sms.COPY_CODE"
                         ]
                     }
                 ]
