@@ -17,6 +17,11 @@ import android.util.Log
 object SmsSender {
     private const val TAG = "NativephpSms.Sender"
 
+    /** The SIM the conversation last used, else -1 (the default one): Reply on a notification and scheduled texts. */
+    fun lastSubscription(context: Context, threadId: String): Int =
+        SmsDb.get(context).rawQuery("SELECT sub_id FROM messages WHERE thread_id = ? AND sub_id IS NOT NULL ORDER BY ts DESC LIMIT 1", arrayOf(threadId))
+            .use { if (it.moveToFirst()) it.getInt(0) else -1 }
+
     data class Result(
         val clientRef: String,
         val stored: Boolean,

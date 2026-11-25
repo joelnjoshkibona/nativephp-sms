@@ -404,6 +404,9 @@ export const sms = {
     openContact: (address: string) =>
         bridgeCall<{ launched: boolean; screen: 'contact' | 'new_contact' | 'show_or_create' }>('Sms.OpenContact', { address }),
 
+    /** Sends a waiting scheduled text now (the same path as its alarm). */
+    sendScheduledNow: (id: string) => bridgeCall<{ id: string; status: 'sent' | 'failed' | 'skipped' }>('Sms.SendScheduledNow', { id }),
+
     /** Phone Master's auto-start screen on Transsion phones, else the app's settings page. */
     openAutostartSettings: () =>
         bridgeCall<{ launched: boolean; screen: 'autostart' | 'app_details' }>('Sms.OpenAutostartSettings'),

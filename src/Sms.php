@@ -182,6 +182,12 @@ class Sms
         return $this->call('Sms.SaveScheduled', array_filter(['id' => $id] + $fields, fn ($v) => $v !== null));
     }
 
+    /** Sends a waiting scheduled text now; status sent, failed or skipped. */
+    public function sendScheduledNow(string $id): array
+    {
+        return $this->call('Sms.SendScheduledNow', ['id' => $id]);
+    }
+
     public function deleteScheduled(string $id): array
     {
         return $this->call('Sms.DeleteScheduled', ['id' => $id]);

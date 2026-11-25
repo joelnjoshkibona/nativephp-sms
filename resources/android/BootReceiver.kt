@@ -10,10 +10,21 @@ import org.json.JSONObject
  * line either way. When the app was the default SMS app and no longer is (another SMS app was chosen, on purpose or not),
  * it posts a notification that leads back to the fix. On Transsion phones this receiver never runs while the app is
  * "Prohibited" in Phone Master's auto-start management, so a missing line after a reboot is itself the sign.
- * It also deletes spam older than 30 days (the app does the same at start-up).
+ * It also deletes spam older than 30 days (the app does the same at start-up), and arms the scheduled texts again
+ * (ScheduledSender.restoreAll), as it does when exact alarms are switched on or off.
  */
 class BootReceiver : BroadcastReceiver() {
+    companion object {
+        const val EXACT_ALARMS_CHANGED = "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == EXACT_ALARMS_CHANGED) {
+            // exact alarms switched on (or off) in "Alarms & reminders": the scheduled texts are armed again either way
+            val pending = goAsync()
+            Background.executor.execute { try { ScheduledSender.restoreAll(context) } finally { pending.finish() } }
+            return
+        }
         val reason = when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED -> "boot_completed"
             Intent.ACTION_MY_PACKAGE_REPLACED -> "package_replaced"
@@ -23,6 +34,8 @@ class BootReceiver : BroadcastReceiver() {
         val pending = goAsync()
         Background.executor.execute {
             try {
+                // Android forgot the alarms: the scheduled texts are armed again, the overdue ones sent now
+                try { ScheduledSender.restoreAll(context) } catch (e: Exception) { android.util.Log.w("SmsBoot", "scheduled restore failed", e) }
                 val purged = VaultOps.purgeSpam(context)
                 if (purged > 0) EventJournal.append(context, "spam_purged", JSONObject().put("count", purged))
             } catch (e: Exception) {
