@@ -51,6 +51,14 @@ One notification per conversation (`MessagingStyle`), with its unread texts and 
 A muted conversation posts nothing, and neither does the one the app says is on screen (`setActiveThread`). Marking a
 conversation read, muting it or deleting it clears its notification.
 
+### Copy code
+
+When the newest unread text holds a one-time code (`CodeFinder`: 4 to 8 digits, 123-456, or capitals and digits, next
+to a word such as code, OTP, PIN, verification, siri or msimbo, never inside a link, an email or a number, never an
+amount after a currency), its notification gets **Copy code**: the code goes on the clipboard, marked sensitive (Android
+13+ shows its own "Copied" with the code hidden; before that a toast). The notification stays. The rules are checked
+against `resources/js/codeCases.json`, which the app's own detector reads too.
+
 ### Send
 
 `send()` writes the message's row first (`queued`, with its part count), then gives **each part its own** sent and

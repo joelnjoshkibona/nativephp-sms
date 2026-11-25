@@ -14,7 +14,8 @@ import androidx.core.app.RemoteInput
 
 /**
  * The app's notifications. A text gets one notification per conversation (notifyThread): the unread texts of that
- * conversation, newest last, with Reply (answered from the shade) and Mark as read; tapping it opens the conversation.
+ * conversation, newest last, with Reply (answered from the shade) and Mark as read, and Copy code when the newest text
+ * holds a one-time code (CodeFinder); tapping it opens the conversation.
  * A muted conversation, or the one open on screen (Sms.SetActiveThread), posts nothing.
  */
 object SmsNotifier {
@@ -36,6 +37,7 @@ object SmsNotifier {
     const val EXTRA_THREAD = "nativephp_sms_thread"
     const val EXTRA_ADDRESS = "nativephp_sms_address"
     const val REPLY_KEY = "nativephp_sms_reply"
+    const val EXTRA_CODE = "nativephp_sms_code"
 
     /** The conversation on screen (the app says so with Sms.SetActiveThread): its texts post no notification. */
     @Volatile var activeThread: String? = null
@@ -73,7 +75,10 @@ object SmsNotifier {
             val sender = Person.Builder().setName(ContactSync.nameFor(appContext, address) ?: address).setKey(address).build()
             val me = Person.Builder().setName("You").build()
             val style = NotificationCompat.MessagingStyle(me)
-            unread(appContext, threadId).forEach { style.addMessage(it.body, it.ts, sender) }
+            val lines = unread(appContext, threadId)
+            lines.forEach { style.addMessage(it.body, it.ts, sender) }
+            // the newest text's one-time code, copied from the shade without opening the app
+            val code = CodeFinder.find(lines.lastOrNull()?.body)
             val icon = appContext.applicationInfo.icon.takeIf { it != 0 } ?: android.R.drawable.sym_action_chat
             val mutable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
 
@@ -101,6 +106,16 @@ object SmsNotifier {
                 .setContentIntent(PendingIntent.getActivity(appContext, id, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
                 .addAction(reply)
                 .addAction(markRead)
+            if (code != null) {
+                val copy = Intent(appContext, NotificationActionReceiver::class.java).setAction(NotificationActionReceiver.ACTION_COPY_CODE)
+                    .putExtra(EXTRA_THREAD, threadId).putExtra(EXTRA_CODE, code)
+                builder.addAction(
+                    NotificationCompat.Action.Builder(
+                        android.R.drawable.ic_menu_edit, "Copy code",
+                        PendingIntent.getBroadcast(appContext, id + 2, copy, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE),
+                    ).setShowsUserInterface(false).build(),
+                )
+            }
             compat.notify(id, builder.build())
             null
         } catch (e: SecurityException) {
