@@ -59,6 +59,17 @@ sent) → `delivered` (every part delivered), or `failed` as soon as any part fa
 failure. The journal gets one `sms_status` line per change. A retried `client_ref` answers with the first send's
 message instead of sending twice.
 
+### Scheduled texts
+
+A waiting scheduled text has one Android alarm (`ScheduledSender`): exact when the phone allows it
+(`SCHEDULE_EXACT_ALARM`; on Android 14 it starts switched off), else as close as Android lets it. When it fires,
+`ScheduledReceiver` sends it on the plugin's background thread, with no web view: the row goes from `waiting` to
+`sending` in one write (a second alarm, or Send now at the same moment, finds nothing), the text goes through `send()`
+with the scheduled id as its `client_ref`, and the row ends `sent` (with its `message_id`) or `failed`. An alarm that
+comes more than a minute early sends nothing and is armed again. After a restart or an app update, and when exact alarms
+are switched on or off, the boot receiver arms the waiting ones again: a text whose time passed less than a day ago is
+sent at once (`late`), an older one is failed ("missed"), never sent days late. A text to a group goes to each number.
+
 ### First-run import
 
 `startImport()` copies the system store into `sms.sqlite`: newest first, 500 rows per transaction, on its own thread.
@@ -131,7 +142,8 @@ PHP (`Blutrixx\NativephpSms\Facades\Sms`) and JS (`sms` from `resources/js/sms.t
 | `configure()` | Toggle the PHP hand-off |
 | `saveThread()` / `deleteThread()` / `deleteMessage()` | A conversation's pin, mute, folder, colour, wallpaper and read state; deletes (also from the system store while default) |
 | `saveTemplate()` / `deleteTemplate()` | Saved replies (title, words, a unique shortcut) |
-| `saveScheduled()` / `deleteScheduled()` | Texts to send later, to a conversation or a number; only a waiting one changes (sending them when due is the app's next step) |
+| `saveScheduled()` / `deleteScheduled()` | Texts to send later, to a conversation or a number; only a waiting one changes; saving arms its alarm, cancelling or deleting disarms it |
+| `sendScheduledNow(id)` | Sends a waiting scheduled text now, the same way as its alarm (`status`: sent, failed or skipped) |
 | `setSetting(key, value)` | The app's own settings in `sms.sqlite` (keys under `app.`) |
 | `syncContacts()` | Copies the phone's contacts into `sms.sqlite` (`contact_cache`) as names for numbers (needs READ_CONTACTS); also runs when the import ends |
 | `search(q, limit)` | Message ids whose words match (each word or its start, any order), newest first, from an FTS4 index kept by triggers |
@@ -150,6 +162,7 @@ PHP (`Blutrixx\NativephpSms\Facades\Sms`) and JS (`sms` from `resources/js/sms.t
 Journal event types:
 - receive: `sms_received` (`route`: normal or spam, `message_id`, `thread`, `row_id`: the system store's id), `sms_sealed` (`route`: private or blocked, `sealed`, `notified`: nothing about the sender or the words), `sms_receive_error`, `store_error`, `mms_ignored`;
 - send: `send_queued`, `send_failed`, `sms_status` (one per change of a message's status: `message_id`, `status`, `parts`);
+- scheduled: `scheduled_armed` (`id`, `send_at`, `exact`), `scheduled_sent` (`id`, `send_at`, `late`), `scheduled_failed` (`id`, `send_at`, `error`), `scheduled_restored` (`armed`, `late`, `missed`, `exact`): ids and times only, never words or numbers;
 - import: `import_started`, `import_done`, `import_caught_up`, `import_failed`;
 - other: `compose_requested`, `default_sms_result`, `boot` (`reason`: `boot_completed` or `package_replaced`; `keep_alive`: `off`, `started` or `refused: …`; `is_default`), `default_sms_lost`, `ephemeral_ok`, `ephemeral_failed`, `ephemeral_timeout`.
 

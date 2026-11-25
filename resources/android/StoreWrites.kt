@@ -145,12 +145,17 @@ object StoreWrites {
 
     /**
      * Creates (no id) or edits a text to send later: to a thread (thread_id) or a number (to). Only a waiting one can be
-     * edited; status "cancelled" cancels it. (Sending them when due arrives with scheduled send, milestone 1.4.)
+     * edited; status "cancelled" cancels it. A waiting text is armed to go out at its time (ScheduledSender).
      */
     fun saveScheduled(
         context: Context, id: String?, threadId: String?, to: String?, body: String?, sendAt: Long?, subId: Int?, status: String?,
         now: Long = System.currentTimeMillis(),
-    ): String = SmsDb.write(context) { db ->
+    ): String = SmsDb.write(context) { db -> saveScheduledRow(db, id, threadId, to, body, sendAt, subId, status, now) }
+        .also { ScheduledSender.sync(context, it) }
+
+    private fun saveScheduledRow(
+        db: android.database.sqlite.SQLiteDatabase, id: String?, threadId: String?, to: String?, body: String?, sendAt: Long?, subId: Int?, status: String?, now: Long,
+    ): String {
         if (status != null && status !in SCHEDULED_STATUSES) throw Invalid("status can only be waiting or cancelled.")
         if (id != null) {
             val current = db.rawQuery("SELECT status FROM scheduled WHERE id = ?", arrayOf(id)).use { c -> if (c.moveToFirst()) c.getString(0) else null }
@@ -176,15 +181,17 @@ object StoreWrites {
             }
             val newId = Ulid.next(now)
             db.insertOrThrow("scheduled", null, values.apply { put("id", newId); put("thread_id", thread); put("created_at", now) })
-            newId
-        } else {
-            db.update("scheduled", values, "id = ?", arrayOf(id))
-            id
+            return newId
         }
+        db.update("scheduled", values, "id = ?", arrayOf(id))
+        return id
     }
 
-    fun deleteScheduled(context: Context, id: String) = SmsDb.write(context) { db ->
-        if (db.delete("scheduled", "id = ?", arrayOf(id)) == 0) throw NotFound("No such scheduled text.")
+    fun deleteScheduled(context: Context, id: String) {
+        SmsDb.write(context) { db ->
+            if (db.delete("scheduled", "id = ?", arrayOf(id)) == 0) throw NotFound("No such scheduled text.")
+        }
+        ScheduledSender.disarm(context, id)
     }
 
     // -- settings --------------------------------------------------------------------------------------------------------

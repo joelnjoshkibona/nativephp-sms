@@ -454,6 +454,14 @@
             "description": "Create, edit or cancel a text to send later (thread_id or to, body, send_at)"
         },
         {
+            "name": "Sms.SendScheduledNow",
+            "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.SendScheduledNow",
+            "android_params": [
+                "context"
+            ],
+            "description": "Send a waiting scheduled text now (the same path as its alarm)"
+        },
+        {
             "name": "Sms.DeleteScheduled",
             "android": "com.blutrixx.plugins.nativephp_sms.SmsFunctions.DeleteScheduled",
             "android_params": [
@@ -608,7 +616,8 @@
             "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
             "android.permission.FOREGROUND_SERVICE",
             "android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING",
-            "android.permission.RECEIVE_BOOT_COMPLETED"
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+            "android.permission.SCHEDULE_EXACT_ALARM"
         ],
         "features": [
             {
@@ -767,7 +776,8 @@
                     {
                         "action": [
                             "android.intent.action.BOOT_COMPLETED",
-                            "android.intent.action.MY_PACKAGE_REPLACED"
+                            "android.intent.action.MY_PACKAGE_REPLACED",
+                            "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"
                         ]
                     }
                 ]
@@ -780,6 +790,17 @@
                         "action": [
                             "com.blutrixx.plugins.nativephp_sms.REPLY",
                             "com.blutrixx.plugins.nativephp_sms.MARK_READ"
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": ".ScheduledReceiver",
+                "exported": false,
+                "intent_filters": [
+                    {
+                        "action": [
+                            "com.blutrixx.plugins.nativephp_sms.SCHEDULED_DUE"
                         ]
                     }
                 ]

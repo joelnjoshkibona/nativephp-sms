@@ -39,7 +39,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             when (action) {
                 ACTION_REPLY -> {
                     if (text.isNotEmpty() && address.isNotEmpty()) {
-                        SmsSender.send(context, address, text, UUID.randomUUID().toString(), lastSubscription(context, threadId))
+                        SmsSender.send(context, address, text, UUID.randomUUID().toString(), SmsSender.lastSubscription(context, threadId))
                         EventJournal.append(context, "notification_reply", JSONObject().put("thread", threadId).put("body_len", text.length))
                     }
                     StoreWrites.saveThread(context, threadId, mapOf("read" to true))
@@ -54,8 +54,4 @@ class NotificationActionReceiver : BroadcastReceiver() {
         }
     }
 
-    /** Reply from the SIM the conversation last used, else the default one. */
-    private fun lastSubscription(context: Context, threadId: String): Int =
-        SmsDb.get(context).rawQuery("SELECT sub_id FROM messages WHERE thread_id = ? AND sub_id IS NOT NULL ORDER BY ts DESC LIMIT 1", arrayOf(threadId))
-            .use { if (it.moveToFirst()) it.getInt(0) else -1 }
 }

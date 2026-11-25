@@ -634,6 +634,14 @@ object SmsFunctions {
         }
     }
 
+    /** id: sends a waiting scheduled text now (the same path as its alarm). status: sent, failed or skipped. */
+    class SendScheduledNow(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>) = write {
+            val id = idParam(parameters)
+            mapOf("id" to id, "status" to ScheduledSender.sendNow(context, id))
+        }
+    }
+
     class DeleteScheduled(private val context: Context) : BridgeFunction {
         override fun execute(parameters: Map<String, Any>) = write { idParam(parameters).also { StoreWrites.deleteScheduled(context, it) }.let { mapOf("id" to it) } }
     }
